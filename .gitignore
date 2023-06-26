@@ -8,4 +8,4 @@ node_modules
 *.log*
 .module-cache
 build/
-
+plugin/lib
