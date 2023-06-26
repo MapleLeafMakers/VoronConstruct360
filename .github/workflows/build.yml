@@ -1,4 +1,4 @@
-name: Package Release
+name: Build
 
 on:
   push:
@@ -20,6 +20,8 @@ jobs:
 
     - name: Build
       run: |
+        pip install wheel
+        pip install -r plugin/requirements.txt --target=plugin/lib
         npm install
         npm run build
 
