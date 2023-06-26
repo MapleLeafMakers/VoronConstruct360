@@ -1,0 +1,11 @@
+dist/
+venv
+node_modules
+.DS_Store
+.vscode
+.idea
+*.iml
+*.log*
+.module-cache
+build/
+

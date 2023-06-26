@@ -1,0 +1,118 @@
+#root,body,html {
+    position: absolute;
+    top: 0px;
+    bottom: 0px;
+    left: 0px;
+    right: 0px;
+    padding: 0px;
+    margin: 0px;
+    background-color: rgb(242,242,242);
+    font-family: arial;
+    font-weight: 100;
+    font-size: 12px;
+    touch-action: manipulation;
+}
+
+.rw-combobox {
+    flex: 1;
+}
+.rw-widget-picker,.rw-widget-container {
+    min-height: 24px !important;
+    border-radius: 0px !important;
+}
+#appwrap {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.btn {
+    border-radius: 0px;
+    background-color: rgb(233,233,233);
+    border: 1px solid rgb(185,185,185);
+    color: rgb(102,102,102);
+    border-radius: 0px;
+
+}
+
+.btn:hover {
+    background: linear-gradient(rgb(99,150,201), rgb(58,105,154));
+    color: white;
+}
+
+.btn-sm {
+    height: 20px;
+    font-size: 12px;
+    line-height: 12px;
+}
+.panel { 
+    display: flex;
+    flex-direction: column;
+    border-bottom: 1px solid rgb(204,204,204);
+}
+.row { 
+    padding: 2px 4px;
+    display: flex; 
+    flex-direction: row;
+}
+
+.input {
+      flex: 1;
+      border-color: rgb(204,204,204);
+      border-style: solid;
+      border-width: 1px;
+}
+
+.treeWrap {
+    background-color: rgb(249,249,249);
+    flex: 1
+}
+.treeWrap > div {
+    flex: 1;
+}
+.treeWrap > div > div {
+    height: 100%;
+}
+
+label {
+    line-height: 20px;
+    margin-right: 4px;
+    color: rgb(102,102,102);
+}
+ 
+.node {
+    line-height: 24px;
+    color: rgb(102,102,102);
+}
+
+[role="treeitem"] {
+    cursor: pointer;
+    user-select: none;
+    border: 1px dashed transparent;
+}
+
+[role="treeitem"]:focus-visible {
+    background-color: rgb(173,173,173);
+    outline: none;
+    
+}
+
+[role="treeitem"][aria-selected="true"]:focus-visible {
+    background-color: rgb(173,173,173);
+    outline: none;
+    
+}
+
+[role="treeitem"]:hover {
+    background-color: rgb(204,204,204);
+    
+}
+
+[role="treeitem"][aria-selected="true"] {
+    background-color: rgb(173,173,173);
+    
+}
+
+[role="treeitem"][aria-selected="true"] .node {
+    color: black;
+}
