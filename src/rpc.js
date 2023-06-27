@@ -1,19 +1,24 @@
 import { JSONRPCClient } from 'json-rpc-2.0';
 
-const rpc = new JSONRPCClient((jsonRPCRequest) => window.adsk.fusionSendData('jsonrpc', JSON.stringify(jsonRPCRequest)));
+const rpc = new JSONRPCClient((jsonRPCRequest) => {
+  console.log("Sending", jsonRPCRequest);
+  window.adsk.fusionSendData('jsonrpc', JSON.stringify(jsonRPCRequest))
+});
 
-window.fusionJavaScriptHandler = {handle: function(action, data) {
-  try {
+window.fusionJavaScriptHandler = {
+  handle: function (action, data) {
+    try {
       if (action == 'jsonrpc') {
         console.log(JSON.parse(data));
         rpc.receive(JSON.parse(data));
       }
-      
-  } catch (e) {
+
+    } catch (e) {
       console.log(e);
       console.log('exception caught with command: ' + action + ', data: ' + data);
+    }
+    return 'OK';
   }
-  return 'OK';
-}};
+};
 
 export default rpc;

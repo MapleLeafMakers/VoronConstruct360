@@ -66,18 +66,28 @@ def _get_repo_contents(url, sha=None, token=None):
         
     return [e for e in entries if 'delete' not in e]
 
-def _download(url):
-    filename = urllib.parse.urlparse(url).path
+def _download(apiUrl):
+    filename = urllib.parse.urlparse(apiUrl).path
     file_extension = os.path.splitext(filename)[-1]
     # Create a temporary file with the file extension
+    response = requests.get(apiUrl, headers={'Accept': 'application/vnd.github.raw', 'Authorization': 'Bearer {}'.format(_token)})    
     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=file_extension)
-    # Download the file from `url` and save it locally under `temp_file.name`:
-    urllib.request.urlretrieve(url, temp_file.name)
+    temp_file.write(response.content)
     return temp_file.name
     
 @rpc.method
 def get_state():
-    return dict(token=_token, repo=_repo, repo_options=_repo_options)
+    return dict(token=_token, repo=_repo)
+    
+@rpc.method
+def get_repo_options():
+    return _repo_options
+
+@rpc.method
+def set_repo_options(repos):
+    global _repo_options
+    _repo_options = repos
+    _save_state()
     
 @rpc.method
 def set_source(repo=None, token=None):
@@ -90,11 +100,13 @@ def set_source(repo=None, token=None):
         path = '/'.join(parts[2:])
         path = '/' + path
     _token = token
+    
+    contents = _get_repo_contents('https://api.github.com/repos/{}/contents{}'.format(repo,path), token=token)    
+    
     _repo = repo
     _repo_options = [r for r in _repo_options if r != repo]
     _repo_options.insert(0, repo)
     _save_state()
-    contents = _get_repo_contents('https://api.github.com/repos/{}/contents{}'.format(repo,path), token=token)    
     return contents
     
 @rpc.method

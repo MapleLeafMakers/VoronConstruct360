@@ -1,11 +1,17 @@
 const HtmlWebpackPlugin = require('html-webpack-plugin');
-const CopyPlugin = require("copy-webpack-plugin");
+const CopyPlugin = require('copy-webpack-plugin');
 
 module.exports = {
+  devtool: 'source-map',
   module: {
+
     rules: [
       {
-        test: /\.js$/,
+        resolve: {
+          extensions: ['.js', '.jsx'],
+        },
+
+        test: /\.jsx?$/,
         exclude: /node_modules/,
         use: {
           loader: 'babel-loader',
@@ -13,16 +19,16 @@ module.exports = {
       },
       {
         test: /\.css$/,
-        use: ['style-loader', 'css-loader']
-      }
+        use: ['style-loader', 'css-loader'],
+      },
     ],
-    
+
   },
   plugins: [
     new CopyPlugin({
       patterns: [
-        { from: "plugin", to: "" },
-        { from: "public/base.css", to: ""}
+        { from: 'plugin', to: '' },
+        { from: 'public/base.css', to: '' },
       ],
     }),
     new HtmlWebpackPlugin({

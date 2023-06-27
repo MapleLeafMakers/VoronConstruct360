@@ -29,10 +29,12 @@
     "clsx": "^1.2.1",
     "copy-webpack-plugin": "^11.0.0",
     "json-rpc-2.0": "^1.6.0",
+    "prop-types": "^15.8.1",
     "react": "^18.2.0",
     "react-arborist": "^3.1.0",
     "react-dom": "^18.2.0",
     "react-icons": "^4.10.1",
+    "react-style-proptype": "^3.2.2",
     "react-widgets": "^5.8.4",
     "spinners-react": "^1.0.7"
   }
