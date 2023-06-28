@@ -17,7 +17,23 @@ const cleanRepos = (repos) => {
   return repoList.join(',');
 };
 
+const Thumbnail = ({ file }) => {
+  const [dataUrl, setDataUrl] = useState('');
+  useEffect(() => {
+    if (file?.content_types?.thumb) {
+      rpc.request("get_thumb", { url: file.content_types.thumb.url }).then(result => {
+        setDataUrl(result);
+      })
+    }
+  });
+  if (file?.content_types?.thumb && dataUrl) {
+    return <Row><img src={dataUrl} style={{ maxWidth: '200px', maxHeight: '200px', objectFit: 'cover' }} /></Row>
+  }
+  return <span></span>;
+}
+
 export default function Browser() {
+  const [selectedFile, setSelectedFile] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
   const [apiKey, setApiKey] = useState('');
   const [repoOptions, setRepoOptions] = useState([]);
@@ -26,15 +42,14 @@ export default function Browser() {
   const [repo, setRepo] = useState('');
 
   useEffect(() => {
-    rpc.request('get_state', {}).then((state) => {
-      setApiKey(state.token);
-      setContents(state.repo_list || []);
-    });
+    const fetchData = async () => {
+      rpc.request('get_state', {}).then((state) => {
+        setApiKey(state.token);
+        setContents(state.repo_list || []);
+      });
+    }
+    fetchData();
   }, []);
-
-  useEffect(() => {
-    populateAllRepos();
-  }, [contents, searchString])
 
 
   useEffect(() => {
@@ -42,37 +57,31 @@ export default function Browser() {
   }, [repo]);
 
   const updateRepoList = (newContents) => {
-    rpc.request('set_repo_list', { repos: newContents.map(n => ({ ...n, children: [], loaded: false })) })
+    rpc.request('set_repo_list', { repos: newContents.map(n => ({ ...n, children: [] })) })
   };
 
-  const addRepo = () => {
+  const addRepo = async () => {
     const cleanedRepo = cleanRepos(repo);
+    let children;
+    try {
+      children = await rpc.request("get_repo_tree", { repo: cleanedRepo, token: apiKey });
+    } catch (e) {
+      alert(e);
+      setRepo('');
+      return;
+    }
+
     setRepo(cleanedRepo);
     const newContents = [...contents.filter(r => r.id !== cleanedRepo), {
       id: cleanedRepo,
       type: 'repo',
       name: cleanedRepo,
-      children: [],
-      loaded: false
+      children: children,
     }];
     setContents(newContents);
     setRepo('');
     updateRepoList(newContents);
   };
-
-  const loadRepo = (repo) => {
-    return new Promise((resolve) => {
-      rpc.request('get_repo_tree', { repo, token: apiKey }).then((results) => {
-        setContents([...contents.map((r) => {
-          if (r.id === repo) {
-            return { ...r, loaded: true, children: results }
-          }
-          return r;
-        })]);
-        resolve();
-      });
-    });
-  }
 
   const updateSearch = (search) => {
     setSearchString(search);
@@ -82,14 +91,6 @@ export default function Browser() {
     const tokens = search.toLowerCase().split(/\s+/);
     return tokens.every((t) => node.data.path && node.data.path.toLowerCase().indexOf(t) !== -1);
   };
-
-  const populateAllRepos = async () => {
-    for (const repo of [...contents]) {
-      if (!repo.loaded) {
-        await loadRepo(repo.id);
-      }
-    }
-  }
 
   return (
     <div id="appwrap">
@@ -114,8 +115,18 @@ export default function Browser() {
             width="100%"
             searchTerm={searchString}
             searchMatch={searchFilter}
+            rowHeight={24}
             data={contents}
-            onToggle={(nodeId) => contents.filter(node => node.id === nodeId)[0].loaded || loadRepo(nodeId)}
+            onSelect={(e) => {
+              if (e && e.length && e[0]?.data.type == 'blob') {
+                console.log("setting selected file to", e[0].data);
+                setSelectedFile(e[0].data);
+              } else {
+                console.log("No selection", e);
+                setSelectedFile(null);
+              }
+
+            }}
             onDelete={(nodeId) => {
               const newContents = [...contents.filter(r => r['id'] !== nodeId)];
               setContents(newContents);
@@ -143,13 +154,15 @@ export default function Browser() {
           <button type="button" style={{ marginLeft: '4px' }} className="btn" onClick={addRepo}><FaPlus /></button>
         </Row>
       </Panel >
-      {showSettings && <Settings
-        onClose={() => setShowSettings(false)}
-        apiKey={apiKey}
-        setApiKey={setApiKey}
-        repoOptions={repoOptions}
-        setRepoOptions={setRepoOptions}
-      />
+      <Thumbnail file={selectedFile} />
+      {
+        showSettings && <Settings
+          onClose={() => setShowSettings(false)}
+          apiKey={apiKey}
+          setApiKey={setApiKey}
+          repoOptions={repoOptions}
+          setRepoOptions={setRepoOptions}
+        />
       }
 
     </div >

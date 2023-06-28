@@ -3,6 +3,7 @@ import tempfile
 import json
 import os
 import sys, pathlib
+import base64
 import urllib.parse
 
 path = str(pathlib.Path(__file__).parent.resolve() / 'lib')
@@ -11,13 +12,16 @@ sys.path.insert(0, path)
 import jsonrpcserver, requests
 from .repodb import RepoDB
 
-rpc = jsonrpcserver.Service()
-rdb = RepoDB()
-
 _save_file = str(pathlib.Path(__file__).parent.resolve() / '_save.json')
+_cache_file = str(pathlib.Path(__file__).parent.resolve() / 'cache.sqlite3')
 _repo_options = ['PrintersForAnts/Voron-Construct']
 _repo_list = None
 _token = None
+
+
+rpc = jsonrpcserver.Service()
+rdb = RepoDB(sqlite_file=_cache_file)
+
 
 def _save_state():
     with open(_save_file, 'w') as f:
@@ -46,7 +50,10 @@ def _download(apiUrl, extension=''):
     
 @rpc.method
 def get_state():
-    return dict(token=_token, repo_list=_repo_list)
+    repo_list = [dict(**r) for r in _repo_list]
+    for r in repo_list:
+        r['children'] = _get_repo_tree(r['id'])
+    return dict(token=_token, repo_list=repo_list)
     
 @rpc.method
 def get_repo_options():
@@ -63,22 +70,36 @@ def set_repo_list(repos):
     global _repo_list
     _repo_list = repos
     _save_state()
+
+@rpc.method
+def get_thumb(url):
+    return rdb.get_thumb(url)
     
+def _get_repo_tree(repo=None):
+    rdb.github_token = _token
+    contents = None
+    try:
+        for r in repo.split(','):
+            owner, repo_name, *repo_path = r.split('/')
+            if contents is None:
+                contents = rdb.get_repository_contents('{}/{}'.format(owner, repo_name), path=repo_path)
+            else:
+                contents = rdb.merge_contents(contents, rdb.get_repository_contents('{}/{}'.format(owner, repo_name), path=repo_path))
+    except Exception as e:
+        raise jsonrpcserver.RpcException(code=-100, message=str(e))
+    return contents
+    
+    
+
 @rpc.method
 def get_repo_tree(repo=None, token=None):
     global _token
     _token = token
-    rdb.github_token = token
-    contents = None
-    for r in repo.split(','):
-        owner, repo_name, *repo_path = r.split('/')
-        if contents is None:
-            contents = rdb.get_repository_contents('{}/{}'.format(owner, repo_name), path=repo_path)
-        else:
-            contents = rdb.merge_contents(contents, rdb.get_repository_contents('{}/{}'.format(owner, repo_name), path=repo_path))
+    contents = _get_repo_tree(repo=repo)
     _save_state()
     return contents
-    
+
+
 @rpc.method
 def open_model(url, content_type):
     fileName = _download(url, extension=content_type)

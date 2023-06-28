@@ -3,9 +3,10 @@ import os
 import re
 from contextlib import closing
 import sqlite3
-
+import base64
 import requests
 
+   
 
 class RepoDB:
     def __init__(self, sqlite_file=":memory:", github_token=None):
@@ -16,6 +17,7 @@ class RepoDB:
 
     def _init_db(self):
         self.conn.execute("CREATE TABLE IF NOT EXISTS repositories(name, tree_sha, contents);")
+        self.conn.execute("CREATE TABLE IF NOT EXISTS thumbnails (url, data_url);")
 
     def _get_latest_commit(self, repo_name):
         response = requests.get(
@@ -24,17 +26,22 @@ class RepoDB:
                 Accept='application/vnd.github+json',
                 Authorization='Bearer {}'.format(self.github_token)
             )
-        ).json()
-        return response[0]['commit']
+        )
+        if response.status_code == 200:
+            return response.json()[0]['commit']
+        raise Exception("Repository {} not found.".format(repo_name))
 
     def _get_tree(self, repo_name, sha):
-        return requests.get(
+        response = requests.get(
             "https://api.github.com/repos/{}/git/trees/{}?recursive=true".format(repo_name, sha),
             headers=dict(
                 Accept='application/vnd.github+json',
                 Authorization='Bearer {}'.format(self.github_token)
             )
-        ).json()['tree']
+        )
+        if response.status_code == 200:
+            return response.json()['tree']
+        raise Exception("Failed to load repository contents from {} [{}: {}]".format(repo_name, response.status_code, response.content))
 
     def _get_content_type(self, filename):
         _, ext = os.path.splitext(filename.lower())
@@ -49,6 +56,16 @@ class RepoDB:
         elif ext == '.png':
             return 'thumb'
 
+    def get_thumb(self, url):
+        with closing(self.conn.execute("SELECT data_url FROM thumbnails WHERE url = ?", (url, ))) as cursor:
+            thumb = cursor.fetchone()
+            if not thumb:
+                response = requests.get(url, headers=dict(Accept="application/vnd.github.raw", Authorization="Bearer {}".format(self.github_token)))
+                thumb = 'data:image/png;base64,{}'.format(base64.b64encode(response.content).decode('utf8')) 
+                cursor.execute("INSERT INTO thumbnails (url, data_url) VALUES (?, ?)", (url, thumb));
+                self.conn.commit()
+        return thumb
+    
     def merge_contents(self, tree1, tree2):
         for node in tree2:
             match = [n for n in tree1 if n['name'] == node['name'] and n['type'] == node['type']]
@@ -89,14 +106,16 @@ class RepoDB:
                 node['content_types'] = {content_type: {'url': node['url'], 'size': node['size'], 'path': node['path']}}
                 node['path'], _ = os.path.splitext(node['path'])
                 del node['url']
-                del node['size']
-                if results and results[-1]['type'] == 'blob' and results[-1]['path'] == node['path']:
-                    prev = results.pop()
-                    node = self._merge_nodes(prev, node)
+                del node['size']                
+                if results and results[-1]['type'] == 'blob':
+                    if results[-1]['path'] == node['path']:
+                        prev = results.pop()                        
+                        node = self._merge_nodes(prev, node)
+                    
             results.append(node)
-        return [r for r in results if r['type'] == 'tree' or (
+        return sorted([r for r in results if r['type'] == 'tree' or (
                 (len(r['content_types']) >= 1 and 'thumb' not in r['content_types']) or (
-                    len(r['content_types']) >= 2 and 'thumb' in r['content_types']))]
+                    len(r['content_types']) >= 2 and 'thumb' in r['content_types']))], key=lambda e: (e['type'] != 'tree', e['name']))
 
     def get_repository_contents(self, repo_name, path=None):
         with closing(self.conn.execute("SELECT name, tree_sha, contents from repositories where lower(name) = ?",
