@@ -58,7 +58,6 @@ const Thumbnail = ({ file }) => {
                 <span>{sizeOf(file.content_types[ct].size)} [<FaGithub style={{ verticalAlign: 'top' }} /> {repo}]</span>
               </div>)
             })}
-
           </div>
         </Row>
       </Panel>

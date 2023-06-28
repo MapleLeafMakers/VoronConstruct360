@@ -49,6 +49,14 @@ def _download(apiUrl, extension=''):
     return temp_file.name
     
 @rpc.method
+def get_screenshot():
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        fname = os.path.join(tmp_dir, 'thumbnail.png')
+        _app.activeViewport.saveAsImageFile(fname, 256, 256)
+        with open(fname, 'rb') as f:
+            return 'data:image/png;base64,{}'.format(base64.b64encode(f.read()).decode('utf8'))
+
+@rpc.method
 def get_state():
     repo_list = [dict(**r) for r in _repo_list]
     for r in repo_list:
@@ -274,12 +282,16 @@ def stop(context):
         if palette:
             palette.deleteMe()
             
-        # Delete controls and associated command definitions created by this add-ins
-        panel = _ui.workspaces.itemById('FusionSolidEnvironment').toolbarPanels.itemById('InsertPanel')
-        cmd = panel.controls.itemById('openVoronConstruct')
+        cmd = _ui.commandDefinitions.itemById('openVoronConstruct')
         if cmd:
             cmd.deleteMe()
-            
+        
+        # Delete controls and associated command definitions created by this add-ins
+        panel = _ui.workspaces.itemById('FusionSolidEnvironment').toolbarPanels.itemById('InsertPanel')
+        if panel:
+            cmd = panel.controls.itemById('openVoronConstruct')
+            if cmd:
+                cmd.deleteMe()
     except:
         if _ui:
             _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
