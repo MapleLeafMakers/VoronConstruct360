@@ -29,7 +29,7 @@ class RepoDB:
         )
         if response.status_code == 200:
             return response.json()[0]['commit']
-        raise Exception("Repository {} not found.".format(repo_name))
+        raise Exception("Repository {} not found.\n{}".format(repo_name, response.json()))
 
     def _get_tree(self, repo_name, sha):
         response = requests.get(

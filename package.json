@@ -25,6 +25,7 @@
   },
   "dependencies": {
     "@octokit/rest": "^19.0.13",
+    "@uidotdev/usehooks": "^2.0.1",
     "axios": "^1.4.0",
     "clsx": "^1.2.1",
     "copy-webpack-plugin": "^11.0.0",

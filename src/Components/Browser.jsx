@@ -1,7 +1,7 @@
 import { React, useEffect, useState } from 'react';
 import { Combobox } from 'react-widgets';
-import { FaCog, FaPlus } from 'react-icons/fa';
-import { SpinnerCircular } from 'spinners-react';
+import { FaCog, FaPlus, FaCube, FaGithub } from 'react-icons/fa';
+import { useWindowSize } from "@uidotdev/usehooks";
 import { Tree } from 'react-arborist';
 import Settings from './Settings';
 import Node from './Node';
@@ -10,6 +10,12 @@ import Row from './Row';
 
 import rpc from '../rpc';
 
+const sizeOf = (bytes) => {
+  if (bytes == 0) { return "0.00 B"; }
+  var e = Math.floor(Math.log(bytes) / Math.log(1024));
+  return (bytes / Math.pow(1024, e)).toFixed(2) + ' ' + ' KMGTP'.charAt(e) + 'B';
+}
+
 const cleanRepos = (repos) => {
   const repoList = repos.split(/[,\s]\s*/).map(r => {
     return r.replace(/\/$/, '').replace(/^(https?:\/\/)?github.com\//, '');
@@ -17,6 +23,13 @@ const cleanRepos = (repos) => {
   return repoList.join(',');
 };
 
+const repoFromUrl = (url) => {
+  const u = new URL(url);
+  if (u.pathname.startsWith("/repos/")) {
+    return u.pathname.split('/').slice(2, 4).join('/');
+  }
+  return null;
+}
 const Thumbnail = ({ file }) => {
   const [dataUrl, setDataUrl] = useState('');
   useEffect(() => {
@@ -24,12 +37,34 @@ const Thumbnail = ({ file }) => {
       rpc.request("get_thumb", { url: file.content_types.thumb.url }).then(result => {
         setDataUrl(result);
       })
+    } else {
+      setDataUrl(null);
     }
   });
-  if (file?.content_types?.thumb && dataUrl) {
-    return <Row><img src={dataUrl} style={{ maxWidth: '200px', maxHeight: '200px', objectFit: 'cover' }} /></Row>
+  if (file) {
+    return (
+      <Panel>
+        <Row>
+          {dataUrl ? <img src={dataUrl} style={{ maxWidth: 192, maxHeight: 192, objectFit: 'cover' }} /> : <FaCube size={192} style={{ flexShrink: 0 }} />}
+          <div style={{ display: 'flex', flexDirection: 'column', borderLeft: '1px solid rgb(204,204,204)', paddingLeft: '4px', marginLeft: '4px' }}>
+            <div>
+              <span style={{ fontWeight: 'bold' }}>Path: </span>
+              <span>{file.path}</span>
+            </div>
+            {Object.keys(file.content_types).filter(k => k != 'thumb').map(ct => {
+              const repo = repoFromUrl(file.content_types[ct].url);
+              return (<div>
+                <span style={{ fontWeight: 'bold' }}>{ct}: </span>
+                <span>{sizeOf(file.content_types[ct].size)} [<FaGithub style={{ verticalAlign: 'top' }} /> {repo}]</span>
+              </div>)
+            })}
+
+          </div>
+        </Row>
+      </Panel>
+    );
   }
-  return <span></span>;
+  return <div></div>;
 }
 
 export default function Browser() {
@@ -41,12 +76,16 @@ export default function Browser() {
   const [contents, setContents] = useState([]);
   const [repo, setRepo] = useState('');
 
+  const windowSize = useWindowSize();
+
   useEffect(() => {
     const fetchData = async () => {
-      rpc.request('get_state', {}).then((state) => {
-        setApiKey(state.token);
-        setContents(state.repo_list || []);
-      });
+      setTimeout(() => {
+        rpc.request('get_state', {}).then((state) => {
+          setApiKey(state.token);
+          setContents(state.repo_list || []);
+        }).catch(err => alert(err));
+      }, 100);
     }
     fetchData();
   }, []);
@@ -111,8 +150,9 @@ export default function Browser() {
       </Panel>
       <Panel style={{ padding: '4px' }}>
         <div className="treeWrap">
-          <Tree height={300}
+          <Tree
             width="100%"
+            height={windowSize.height - (64 + (selectedFile ? 200 : 0))}
             searchTerm={searchString}
             searchMatch={searchFilter}
             rowHeight={24}
