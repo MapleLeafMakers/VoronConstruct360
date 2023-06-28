@@ -66,19 +66,20 @@ class RepoDB:
         node1['content_types'].update(node2['content_types'])
         return node1
 
-    def _build_tree(self, contents, root=''):
+    def _build_tree(self, contents, root='', id_prefix=''):
         results = []
         while contents:
             node = contents[0]
             if not node['path'].startswith(root):
                 break
             contents.pop(0)
+            node['id'] = '{}{}'.format(id_prefix, node['path'])
             node['name'] = node['path'].split('/')[-1]
             node['name'], _ = os.path.splitext(node['name'])
             del node['sha']
             del node['mode']
             if node['type'] == 'tree':
-                node['children'] = self._build_tree(contents, root='{}/'.format(node['path']))
+                node['children'] = self._build_tree(contents, root='{}/'.format(node['path']), id_prefix=id_prefix)
                 if not node['children']:
                     continue
             elif node['type'] == 'blob':
@@ -94,7 +95,7 @@ class RepoDB:
                     node = self._merge_nodes(prev, node)
             results.append(node)
         return [r for r in results if r['type'] == 'tree' or (
-                len(r['content_types']) >= 1 or (
+                (len(r['content_types']) >= 1 and 'thumb' not in r['content_types']) or (
                     len(r['content_types']) >= 2 and 'thumb' in r['content_types']))]
 
     def get_repository_contents(self, repo_name, path=None):

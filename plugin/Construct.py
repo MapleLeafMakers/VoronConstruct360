@@ -15,32 +15,21 @@ rpc = jsonrpcserver.Service()
 rdb = RepoDB()
 
 _save_file = str(pathlib.Path(__file__).parent.resolve() / '_save.json')
-
+_repo_options = ['PrintersForAnts/Voron-Construct']
+_repo_list = None
 _token = None
-_repo = None
-_repo_options = [
-    'kyleisah/Voron-Construct',
-    'VoronDesign/Voron-0',
-    'VoronDesign/Voron-Trident',
-    'VoronDesign/Voron-2',
-    'VoronDesign/Voron-Switchwire',
-    'VoronDesign/Voron-Legacy',
-    'VoronDesign/VoronHardware',
-    'VoronDesign/Voron-Stealthburner',
-    'VoronDesign/Voron-Tap'
-]
 
 def _save_state():
     with open(_save_file, 'w') as f:
-        f.write(json.dumps(dict(token=_token, repo=_repo, repo_options=_repo_options)))                 
+        f.write(json.dumps(dict(token=_token, repo_list=_repo_list, repo_options=_repo_options)))                 
 
 def _load_state():
-    global _token, _repo, _repo_options
+    global _token, _repo_list, _repo_options
     try:
         with open(_save_file, 'r') as f:
             state = json.load(f)
             _token = state['token']
-            _repo = state['repo']
+            _repo_list = state['repo_list']
             _repo_options = state['repo_options']
     except (OSError, KeyError, ValueError):
         pass    
@@ -57,7 +46,7 @@ def _download(apiUrl, extension=''):
     
 @rpc.method
 def get_state():
-    return dict(token=_token, repo=_repo)
+    return dict(token=_token, repo_list=_repo_list)
     
 @rpc.method
 def get_repo_options():
@@ -68,10 +57,16 @@ def set_repo_options(repos):
     global _repo_options
     _repo_options = repos
     _save_state()
+
+@rpc.method
+def set_repo_list(repos):
+    global _repo_list
+    _repo_list = repos
+    _save_state()
     
 @rpc.method
-def set_source(repo=None, token=None):
-    global _token, _repo, _repo_options
+def get_repo_tree(repo=None, token=None):
+    global _token
     _token = token
     rdb.github_token = token
     contents = None
@@ -81,10 +76,6 @@ def set_source(repo=None, token=None):
             contents = rdb.get_repository_contents('{}/{}'.format(owner, repo_name), path=repo_path)
         else:
             contents = rdb.merge_contents(contents, rdb.get_repository_contents('{}/{}'.format(owner, repo_name), path=repo_path))
-
-    _repo = repo
-    _repo_options = [r for r in _repo_options if r != repo]
-    _repo_options.insert(0, repo)
     _save_state()
     return contents
     

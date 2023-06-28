@@ -1,6 +1,6 @@
 import { React, useEffect, useState } from 'react';
 import { Combobox } from 'react-widgets';
-import { FaCog } from 'react-icons/fa';
+import { FaCog, FaPlus } from 'react-icons/fa';
 import { SpinnerCircular } from 'spinners-react';
 import { Tree } from 'react-arborist';
 import Settings from './Settings';
@@ -23,46 +23,109 @@ export default function Browser() {
   const [repoOptions, setRepoOptions] = useState([]);
   const [searchString, setSearchString] = useState('');
   const [contents, setContents] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [repo, setRepo] = useState('');
 
   useEffect(() => {
     rpc.request('get_state', {}).then((state) => {
       setApiKey(state.token);
-      setRepo(state.repo);
+      setContents(state.repo_list || []);
     });
   }, []);
+
+  useEffect(() => {
+    populateAllRepos();
+  }, [contents, searchString])
+
 
   useEffect(() => {
     localStorage.setItem('repo', JSON.stringify(repo));
   }, [repo]);
 
-  const loadRepo = () => {
+  const updateRepoList = (newContents) => {
+    rpc.request('set_repo_list', { repos: newContents.map(n => ({ ...n, children: [], loaded: false })) })
+  };
+
+  const addRepo = () => {
     const cleanedRepo = cleanRepos(repo);
-    console.log(cleanedRepo);
     setRepo(cleanedRepo);
-    setLoading(true); // this doesn't work
-    setTimeout(() => {
-      rpc.request('set_source', { repo: cleanedRepo, token: apiKey }).then((results) => {
-        setContents(results);
-        setLoading(false);
-      }).catch((err) => {
-        alert(err.message);
-        setLoading(false);
+    const newContents = [...contents.filter(r => r.id !== cleanedRepo), {
+      id: cleanedRepo,
+      type: 'repo',
+      name: cleanedRepo,
+      children: [],
+      loaded: false
+    }];
+    setContents(newContents);
+    setRepo('');
+    updateRepoList(newContents);
+  };
+
+  const loadRepo = (repo) => {
+    return new Promise((resolve) => {
+      rpc.request('get_repo_tree', { repo, token: apiKey }).then((results) => {
+        setContents([...contents.map((r) => {
+          if (r.id === repo) {
+            return { ...r, loaded: true, children: results }
+          }
+          return r;
+        })]);
+        resolve();
       });
-    }, 100);
+    });
+  }
+
+  const updateSearch = (search) => {
+    setSearchString(search);
   };
 
   const searchFilter = (node, search) => {
     const tokens = search.toLowerCase().split(/\s+/);
-    return tokens.every((t) => node.data.path.toLowerCase().indexOf(t) !== -1);
+    return tokens.every((t) => node.data.path && node.data.path.toLowerCase().indexOf(t) !== -1);
   };
+
+  const populateAllRepos = async () => {
+    for (const repo of [...contents]) {
+      if (!repo.loaded) {
+        await loadRepo(repo.id);
+      }
+    }
+  }
 
   return (
     <div id="appwrap">
       <Panel style={{ flex: 0 }}>
         <Row>
-          <label htmlFor="repo-input">Repository </label>
+          <label htmlFor="search-input">Search </label>
+          <input
+            id="search-input"
+            type="text"
+            className="input"
+            value={searchString}
+            onChange={(event) => {
+              updateSearch(event.target.value);
+            }}
+          />
+          <button aria-label="Settings" type="button" style={{ marginLeft: '4px', paddingTop: '4px' }} className="btn" onClick={() => setShowSettings(true)}><FaCog /></button>
+        </Row>
+      </Panel>
+      <Panel style={{ padding: '4px' }}>
+        <div className="treeWrap">
+          <Tree height={300}
+            width="100%"
+            searchTerm={searchString}
+            searchMatch={searchFilter}
+            data={contents}
+            onToggle={(nodeId) => contents.filter(node => node.id === nodeId)[0].loaded || loadRepo(nodeId)}
+            onDelete={(nodeId) => {
+              const newContents = [...contents.filter(r => r['id'] !== nodeId)];
+              setContents(newContents);
+              updateRepoList(newContents);
+            }}
+            openByDefault={false}
+            indent={16}>{Node}</Tree>
+        </div>
+        <Row>
+          <label htmlFor="repo-input">Add Repository </label>
           <Combobox
             data={repoOptions}
             inputProps={{ className: 'input', id: 'repo-input' }}
@@ -77,44 +140,18 @@ export default function Browser() {
               setRepo(value);
             }}
           />
-          <button type="button" style={{ marginLeft: '4px' }} className="btn" onClick={loadRepo}>Load</button>
-          <button aria-label="Settings" type="button" style={{ marginLeft: '4px', paddingTop: '4px' }} className="btn" onClick={() => setShowSettings(true)}><FaCog /></button>
+          <button type="button" style={{ marginLeft: '4px' }} className="btn" onClick={addRepo}><FaPlus /></button>
         </Row>
-        <Row>
-          <label htmlFor="search-input">Search </label>
-          <input
-            id="search-input"
-            type="text"
-            className="input"
-            value={searchString}
-            onChange={(event) => {
-              setSearchString(event.target.value);
-            }}
-          />
-        </Row>
-      </Panel>
-      <Panel style={{ padding: '4px' }}>
-        {loading
-          ? (
-            <div style={{ textAlign: 'center', width: '100%' }}>
-              <SpinnerCircular />
-            </div>
-          )
-
-          : (
-            <div className="treeWrap">
-              <Tree height={300} width="100%" searchTerm={searchString} searchMatch={searchFilter} data={contents} idAccessor="path" openByDefault={false} indent={16}>{Node}</Tree>
-            </div>
-          )}
-      </Panel>
+      </Panel >
       {showSettings && <Settings
         onClose={() => setShowSettings(false)}
         apiKey={apiKey}
         setApiKey={setApiKey}
         repoOptions={repoOptions}
         setRepoOptions={setRepoOptions}
-      />}
+      />
+      }
 
-    </div>
+    </div >
   );
 }

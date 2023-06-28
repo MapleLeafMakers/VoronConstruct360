@@ -6,6 +6,9 @@ import {
   FaFolderOpen,
   FaFolder,
   FaCube,
+  FaGithub,
+  FaTrash,
+  FaEdit
 } from 'react-icons/fa';
 
 import PropTypes from 'prop-types';
@@ -23,13 +26,16 @@ function NodeIcon({ node }) {
   if (node.isLeaf) {
     return <FaCube />;
   }
+  if (node.data.type === 'repo') {
+    return <FaGithub />
+  }
   return node.isOpen ? <FaFolderOpen /> : <FaFolder />;
 }
 NodeIcon.propTypes = {
   node: PropTypes.oneOfType(NodeApi).isRequired,
 };
 
-export default function Node({ node, style, dragHandle }) {
+export default function Node({ node, tree, style, dragHandle }) {
   const [importEnabled, setImportEnabled] = useState(true);
   return (
     <div
@@ -47,7 +53,7 @@ export default function Node({ node, style, dragHandle }) {
         <NodeIcon node={node} />
       </span>
       {' '}
-      <span style={{ display: 'inline-block', flex: 1 }}>{node.data.name}</span>
+      <span style={{ display: 'inline-block', flex: 1, fontWeight: node.data.type === 'repo' ? 'bold' : 'inherit' }}>{node.data.displayName || node.data.name}</span>
       {node.isSelected && node.data.type == 'blob' && (
         <>
           <button
@@ -86,6 +92,15 @@ export default function Node({ node, style, dragHandle }) {
           </button>
 
         </>
+      )}
+      {node.isSelected && node.data.type == 'repo' && (
+
+        <button type="button" className="btn btn-sm danger" onClick={(e) => {
+          tree.props.onDelete(node.data.id);
+          e.stopPropagation();
+        }}><FaTrash /></button>
+
+
       )}
     </div>
   );

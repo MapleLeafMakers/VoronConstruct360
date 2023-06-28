@@ -50,6 +50,11 @@ html {
     color: white;
 }
 
+.btn.danger:hover:not(:disabled) {
+    background: linear-gradient(rgb(201, 150, 99), rgb(154, 58, 105));
+    color: white;
+}
+
 .btn-sm {
     height: 20px;
     font-size: 12px;
