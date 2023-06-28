@@ -93,9 +93,11 @@ def _get_repo_tree(repo=None):
 
 @rpc.method
 def get_repo_tree(repo=None, token=None):
-    global _token
+    global _token, _repo_options
     _token = token
     contents = _get_repo_tree(repo=repo)
+    _repo_options = [r for r in _repo_options if r != repo]
+    _repo_options.insert(0, repo)
     _save_state()
     return contents
 
