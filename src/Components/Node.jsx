@@ -48,7 +48,7 @@ export default function Node({ node, style, dragHandle }) {
       </span>
       {' '}
       <span style={{ display: 'inline-block', flex: 1 }}>{node.data.name}</span>
-      {node.isSelected && node.data.type == 'file' && (
+      {node.isSelected && node.data.type == 'blob' && (
         <>
           <button
             type="button"
@@ -56,7 +56,9 @@ export default function Node({ node, style, dragHandle }) {
             onClick={() => {
               setImportEnabled(false);
               setTimeout(() => {
-                rpc.request('import_model', { url: node.data.download_url }).then(() => {
+                const ctypes = node.data.content_types;
+                const content_type = (ctypes.step && 'step') || (ctypes.f3d && 'f3d') || (ctypes.svg && 'svg') || (ctypes.dxf && 'dxf');
+                rpc.request('import_model', { url: ctypes[content_type].url, content_type: content_type }).then(() => {
                   setImportEnabled(true);
                 });
               }, 100);
@@ -71,8 +73,9 @@ export default function Node({ node, style, dragHandle }) {
             onClick={() => {
               setImportEnabled(false);
               setTimeout(() => {
-                console.log('Opening', { url: node.data.download_url });
-                rpc.request('open_model', { url: node.data.download_url }).then(() => {
+                const ctypes = node.data.content_types;
+                const content_type = (ctypes.f3d && 'f3d') || (ctypes.step && 'step') || (ctypes.svg && 'svg') || (ctypes.dxf && 'dxf');
+                rpc.request('open_model', { url: ctypes[content_type].url, content_type: content_type }).then(() => {
                   setImportEnabled(true);
                 });
               }, 100);

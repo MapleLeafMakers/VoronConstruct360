@@ -10,6 +10,13 @@ import Row from './Row';
 
 import rpc from '../rpc';
 
+const cleanRepos = (repos) => {
+  const repoList = repos.split(/[,\s]\s*/).map(r => {
+    return r.replace(/\/$/, '').replace(/^(https?:\/\/)?github.com\//, '');
+  });
+  return repoList.join(',');
+};
+
 export default function Browser() {
   const [showSettings, setShowSettings] = useState(false);
   const [apiKey, setApiKey] = useState('');
@@ -31,9 +38,12 @@ export default function Browser() {
   }, [repo]);
 
   const loadRepo = () => {
+    const cleanedRepo = cleanRepos(repo);
+    console.log(cleanedRepo);
+    setRepo(cleanedRepo);
     setLoading(true); // this doesn't work
     setTimeout(() => {
-      rpc.request('set_source', { repo, token: apiKey }).then((results) => {
+      rpc.request('set_source', { repo: cleanedRepo, token: apiKey }).then((results) => {
         setContents(results);
         setLoading(false);
       }).catch((err) => {
@@ -68,7 +78,7 @@ export default function Browser() {
             }}
           />
           <button type="button" style={{ marginLeft: '4px' }} className="btn" onClick={loadRepo}>Load</button>
-          <button aria-label="Settings" type="button" style={{ marginLeft: '4px' }} className="btn" onClick={() => setShowSettings(true)}><FaCog /></button>
+          <button aria-label="Settings" type="button" style={{ marginLeft: '4px', paddingTop: '4px' }} className="btn" onClick={() => setShowSettings(true)}><FaCog /></button>
         </Row>
         <Row>
           <label htmlFor="search-input">Search </label>

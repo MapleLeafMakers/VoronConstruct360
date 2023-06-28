@@ -4,13 +4,16 @@ import json
 import os
 import sys, pathlib
 import urllib.parse
+
 path = str(pathlib.Path(__file__).parent.resolve() / 'lib')
 sys.path.insert(0, path)
 
 import jsonrpcserver, requests
+from .repodb import RepoDB
 
 rpc = jsonrpcserver.Service()
-_cache = dict()
+rdb = RepoDB()
+
 _save_file = str(pathlib.Path(__file__).parent.resolve() / '_save.json')
 
 _token = None
@@ -42,36 +45,13 @@ def _load_state():
     except (OSError, KeyError, ValueError):
         pass    
         
-def _get_repo_contents(url, sha=None, token=None):
-    if sha is not None and sha in _cache:
-        return _cache[sha]
+def _download(apiUrl, extension=''):
+    if extension:
+        extension = '.{}'.format(extension)
     
-    response = requests.get(url, headers={'Accept': 'application/vnd.github+json', 'Authorization': 'Bearer {}'.format(token)})
-    if response.status_code != 200:
-        err_obj = response.json()
-        raise jsonrpcserver.RpcException(100, err_obj['message'])
-    
-    entries = response.json()    
-    for entry in entries:
-        name, ext = os.path.splitext(entry['name'])
-        if entry['type'] == 'file' and ext.lower() not in ['.f3d', '.stp', '.step', '.dxf', '.svg']:
-            entry['delete'] = True
-
-        if entry['type'] == 'dir':
-            inner_results = _get_repo_contents(entry['url'], sha=entry['sha'], token=token)
-            if not [e for e in inner_results if 'delete' not in e]:
-               entry['delete'] = True
-            _cache[entry['sha']] = inner_results
-            entry['children'] = inner_results
-        
-    return [e for e in entries if 'delete' not in e]
-
-def _download(apiUrl):
-    filename = urllib.parse.urlparse(apiUrl).path
-    file_extension = os.path.splitext(filename)[-1]
     # Create a temporary file with the file extension
     response = requests.get(apiUrl, headers={'Accept': 'application/vnd.github.raw', 'Authorization': 'Bearer {}'.format(_token)})    
-    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=file_extension)
+    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=extension)
     temp_file.write(response.content)
     return temp_file.name
     
@@ -92,17 +72,16 @@ def set_repo_options(repos):
 @rpc.method
 def set_source(repo=None, token=None):
     global _token, _repo, _repo_options
-    repo = repo.replace("https://github.com/","")
-    parts = repo.split("/")
-    repo = parts[0] + '/' + parts[1]
-    path = ''
-    if len(parts) > 2:
-        path = '/'.join(parts[2:])
-        path = '/' + path
     _token = token
-    
-    contents = _get_repo_contents('https://api.github.com/repos/{}/contents{}'.format(repo,path), token=token)    
-    
+    rdb.github_token = token
+    contents = None
+    for r in repo.split(','):
+        owner, repo_name, *repo_path = r.split('/')
+        if contents is None:
+            contents = rdb.get_repository_contents('{}/{}'.format(owner, repo_name), path=repo_path)
+        else:
+            contents = rdb.merge_contents(contents, rdb.get_repository_contents('{}/{}'.format(owner, repo_name), path=repo_path))
+
     _repo = repo
     _repo_options = [r for r in _repo_options if r != repo]
     _repo_options.insert(0, repo)
@@ -110,13 +89,15 @@ def set_source(repo=None, token=None):
     return contents
     
 @rpc.method
-def open_model(url):
-    fileName = _download(url)
+def open_model(url, content_type):
+    fileName = _download(url, extension=content_type)
     app = adsk.core.Application.get()        
     
     importManager = app.importManager
-
-    options = create_import_options(fileName)
+    try:
+        options = create_import_options(fileName, content_type)
+    except:
+        raise ValueError("Failed to create options for {} | {}".format(fileName, content_type))
     options.isViewFit = True
     
     try:
@@ -127,8 +108,8 @@ def open_model(url):
   
 
 @rpc.method
-def import_model(url):
-    fileName = _download(url)
+def import_model(url, content_type):
+    fileName = _download(url, extension=content_type)
     app = adsk.core.Application.get()        
     importManager = app.importManager
 
@@ -136,7 +117,7 @@ def import_model(url):
     product = app.activeProduct
     design = adsk.fusion.Design.cast(product)
     
-    options = create_import_options(fileName)
+    options = create_import_options(fileName, content_type)
     options.isViewFit = False 
     
     target = design.activeComponent
@@ -149,9 +130,7 @@ def import_model(url):
             _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
   
 
-def create_import_options(filename):
-    _, ext = os.path.splitext(filename)
-    ext = ext.lower()[1:]
+def create_import_options(filename, ext):
     if ext in ('stp', 'step'):
         return adsk.core.Application.get().importManager.createSTEPImportOptions(filename)
     elif ext == 'f3d':
