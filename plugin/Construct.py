@@ -136,7 +136,6 @@ def open_model(url, content_type):
         options = create_import_options(fileName, content_type)
     except:
         raise ValueError("Failed to create options for {} | {}".format(fileName, content_type))
-    options.isViewFit = True
     
     try:
         importManager.importToNewDocument(options)
@@ -156,7 +155,6 @@ def import_model(url, content_type):
     design = adsk.fusion.Design.cast(product)
     
     options = create_import_options(fileName, content_type)
-    options.isViewFit = True
     
     target = design.activeComponent
     if isinstance(options, (adsk.core.DXF2DImportOptions, adsk.core.SVGImportOptions)):
