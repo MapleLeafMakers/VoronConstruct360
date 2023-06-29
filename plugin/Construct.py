@@ -156,7 +156,7 @@ def import_model(url, content_type):
     design = adsk.fusion.Design.cast(product)
     
     options = create_import_options(fileName, content_type)
-    options.isViewFit = False 
+    options.isViewFit = True
     
     target = design.activeComponent
     if isinstance(options, (adsk.core.DXF2DImportOptions, adsk.core.SVGImportOptions)):

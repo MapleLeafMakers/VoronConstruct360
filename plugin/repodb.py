@@ -73,6 +73,7 @@ class RepoDB:
         prev_sha = None
         if response.status_code == 200:
             prev_sha = response.json()['sha']
+
         response = requests.put(
             url, 
             json=dict(
@@ -81,6 +82,7 @@ class RepoDB:
                 content=data,
             ), 
             headers={'Accept': 'application/vnd.github+json', 'Authorization': 'Bearer {}'.format(self.github_token)})
+
         if response.status_code not in (200, 201):
             raise Exception(response.json()['message'])
         
