@@ -25,7 +25,8 @@
 Clone the repository, and run:
 
 ```sh
-pip install plugin/requirements.txt --target=plugin/lib
+pip install plugin/requirements.txt --no-user 
+--ignore-installed --target=plugin/lib
 npm install
 npm run build
 ```
