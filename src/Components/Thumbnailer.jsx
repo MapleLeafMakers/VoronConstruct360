@@ -22,7 +22,7 @@ export default function Thumbnailer({ file, onClose }) {
       <div className="panel" style={{ zIndex: 99999, minWidth: 200, maxWidth: 400, margin: 'auto' }}>
         <Panel>
           {dataUrl ? <img src={dataUrl} style={{ maxWidth: 256, maxHeight: 256, margin: 'auto', objectFit: 'cover' }} />
-            : <FaCube size={256} />}
+            : <FaCube size={256} style={{ margin: 'auto' }} />}
           <Row style={{ justifyContent: 'center' }}>
             <button onClick={() => {
               rpc.request("get_screenshot").then(setDataUrl).then(() => setHasScreenshot(true));
