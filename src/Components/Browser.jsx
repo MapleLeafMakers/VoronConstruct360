@@ -1,4 +1,4 @@
-import { React, useEffect, useState } from 'react';
+import { React, useEffect, useState, useRef } from 'react';
 import { Combobox } from 'react-widgets';
 import { FaCog, FaPlus, FaCube, FaGithub } from 'react-icons/fa';
 import { useWindowSize } from "@uidotdev/usehooks";
@@ -7,14 +7,11 @@ import Settings from './Settings';
 import Node from './Node';
 import Panel from './Panel';
 import Row from './Row';
-
+import Preview from './Preview';
+import Thumbnailer from './Thumbnailer';
 import rpc from '../rpc';
 
-const sizeOf = (bytes) => {
-  if (bytes == 0) { return "0.00 B"; }
-  var e = Math.floor(Math.log(bytes) / Math.log(1024));
-  return (bytes / Math.pow(1024, e)).toFixed(2) + ' ' + ' KMGTP'.charAt(e) + 'B';
-}
+
 
 const cleanRepos = (repos) => {
   const repoList = repos.split(/[,\s]\s*/).map(r => {
@@ -23,57 +20,17 @@ const cleanRepos = (repos) => {
   return repoList.join(',');
 };
 
-const repoFromUrl = (url) => {
-  const u = new URL(url);
-  if (u.pathname.startsWith("/repos/")) {
-    return u.pathname.split('/').slice(2, 4).join('/');
-  }
-  return null;
-}
-const Thumbnail = ({ file }) => {
-  const [dataUrl, setDataUrl] = useState('');
-  useEffect(() => {
-    if (file?.content_types?.thumb) {
-      rpc.request("get_thumb", { url: file.content_types.thumb.url }).then(result => {
-        setDataUrl(result);
-      })
-    } else {
-      setDataUrl(null);
-    }
-  });
-  if (file) {
-    return (
-      <Panel>
-        <Row>
-          {dataUrl ? <img src={dataUrl} style={{ maxWidth: 192, maxHeight: 192, objectFit: 'cover' }} /> : <FaCube size={192} style={{ flexShrink: 0 }} />}
-          <div style={{ display: 'flex', flexDirection: 'column', borderLeft: '1px solid rgb(204,204,204)', paddingLeft: '4px', marginLeft: '4px' }}>
-            <div>
-              <span style={{ fontWeight: 'bold' }}>Path: </span>
-              <span>{file.path}</span>
-            </div>
-            {Object.keys(file.content_types).filter(k => k != 'thumb').map(ct => {
-              const repo = repoFromUrl(file.content_types[ct].url);
-              return (<div>
-                <span style={{ fontWeight: 'bold' }}>{ct}: </span>
-                <span>{sizeOf(file.content_types[ct].size)} [<FaGithub style={{ verticalAlign: 'top' }} /> {repo}]</span>
-              </div>)
-            })}
-          </div>
-        </Row>
-      </Panel>
-    );
-  }
-  return <div></div>;
-}
 
 export default function Browser() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showThumbnailer, setShowThumbnailer] = useState(false);
   const [apiKey, setApiKey] = useState('');
   const [repoOptions, setRepoOptions] = useState([]);
   const [searchString, setSearchString] = useState('');
   const [contents, setContents] = useState([]);
   const [repo, setRepo] = useState('');
+  const tree = useRef();
 
   const windowSize = useWindowSize();
 
@@ -97,6 +54,23 @@ export default function Browser() {
   const updateRepoList = (newContents) => {
     rpc.request('set_repo_list', { repos: newContents.map(n => ({ ...n, children: [] })) })
   };
+
+  const newContents = [];
+
+  const reloadRepo = async (repo) => {
+    for (let r of contents) {
+      if (r.id != repo) {
+        newContents.push({ ...r });
+      } else {
+        newContents.push({
+          ...r,
+          children: await rpc.request("get_repo_tree", { repo, token: apiKey })
+        })
+      }
+
+    }
+    setContents(newContents);
+  }
 
   const addRepo = async () => {
     const cleanedRepo = cleanRepos(repo);
@@ -150,12 +124,14 @@ export default function Browser() {
       <Panel style={{ padding: '4px' }}>
         <div className="treeWrap">
           <Tree
+            ref={tree}
             width="100%"
             height={windowSize.height - (64 + (selectedFile ? 200 : 0))}
             searchTerm={searchString}
             searchMatch={searchFilter}
             rowHeight={24}
             data={contents}
+            onChange={reloadRepo}
             onSelect={(e) => {
               if (e && e.length && e[0]?.data.type == 'blob') {
                 console.log("setting selected file to", e[0].data);
@@ -193,7 +169,7 @@ export default function Browser() {
           <button type="button" style={{ marginLeft: '4px' }} className="btn" onClick={addRepo}><FaPlus /></button>
         </Row>
       </Panel >
-      <Thumbnail file={selectedFile} />
+      <Preview file={selectedFile} onClickImage={() => setShowThumbnailer(true)} />
       {
         showSettings && <Settings
           onClose={() => setShowSettings(false)}
@@ -202,6 +178,20 @@ export default function Browser() {
           repoOptions={repoOptions}
           setRepoOptions={setRepoOptions}
         />
+      }
+      {
+        showThumbnailer && <Thumbnailer
+          file={selectedFile}
+          onClose={
+            (updated) => {
+              console.log('updated', updated);
+              setShowThumbnailer(false);
+              if (updated) {
+                const repoId = selectedFile.id.split('|')[0];
+                reloadRepo(repoId);
+              }
+            }
+          } />
       }
 
     </div >

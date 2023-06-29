@@ -4,7 +4,6 @@ import json
 import os
 import sys, pathlib
 import base64
-import urllib.parse
 
 path = str(pathlib.Path(__file__).parent.resolve() / 'lib')
 sys.path.insert(0, path)
@@ -27,6 +26,7 @@ def _save_state():
     with open(_save_file, 'w') as f:
         f.write(json.dumps(dict(token=_token, repo_list=_repo_list, repo_options=_repo_options)))                 
 
+
 def _load_state():
     global _token, _repo_list, _repo_options
     try:
@@ -38,6 +38,7 @@ def _load_state():
     except (OSError, KeyError, ValueError):
         pass    
         
+
 def _download(apiUrl, extension=''):
     if extension:
         extension = '.{}'.format(extension)
@@ -48,6 +49,7 @@ def _download(apiUrl, extension=''):
     temp_file.write(response.content)
     return temp_file.name
     
+
 @rpc.method
 def get_screenshot():
     with tempfile.TemporaryDirectory() as tmp_dir:
@@ -57,15 +59,27 @@ def get_screenshot():
             return 'data:image/png;base64,{}'.format(base64.b64encode(f.read()).decode('utf8'))
 
 @rpc.method
+def upload_thumbnail(repo, path, data):
+    try:        
+        if data.startswith('data:image/png;base64,'):
+            data = data[22:]
+        rdb.upload_thumbnail(repo, path, data)  
+    except Exception as e:
+        raise jsonrpcserver.RpcException(code=-200, message=str(e))
+
+
+@rpc.method
 def get_state():
     repo_list = [dict(**r) for r in _repo_list]
     for r in repo_list:
         r['children'] = _get_repo_tree(r['id'])
     return dict(token=_token, repo_list=repo_list)
     
+
 @rpc.method
 def get_repo_options():
     return _repo_options
+
 
 @rpc.method
 def set_repo_options(repos):
@@ -73,16 +87,19 @@ def set_repo_options(repos):
     _repo_options = repos
     _save_state()
 
+
 @rpc.method
 def set_repo_list(repos):
     global _repo_list
     _repo_list = repos
     _save_state()
 
+
 @rpc.method
 def get_thumb(url):
     return rdb.get_thumb(url)
-    
+
+
 def _get_repo_tree(repo=None):
     rdb.github_token = _token
     contents = None
@@ -90,14 +107,13 @@ def _get_repo_tree(repo=None):
         for r in repo.split(','):
             owner, repo_name, *repo_path = r.split('/')
             if contents is None:
-                contents = rdb.get_repository_contents('{}/{}'.format(owner, repo_name), path=repo_path)
+                contents = rdb.get_repository_contents('{}/{}'.format(owner, repo_name), path=repo_path, id_prefix=repo)
             else:
                 contents = rdb.merge_contents(contents, rdb.get_repository_contents('{}/{}'.format(owner, repo_name), path=repo_path))
     except Exception as e:
         raise jsonrpcserver.RpcException(code=-100, message=str(e))
     return contents
-    
-    
+
 
 @rpc.method
 def get_repo_tree(repo=None, token=None):
@@ -266,7 +282,8 @@ def run(context):
 
         cntrl = panel.controls.itemById('openVoronConstruct')
         if not cntrl:
-            panel.controls.addCommand(showPaletteCmdDef)
+            cntrl = panel.controls.addCommand(showPaletteCmdDef, )
+            cntrl.isPromoted = True
 
         _load_state()
 

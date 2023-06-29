@@ -5,6 +5,7 @@ from contextlib import closing
 import sqlite3
 import base64
 import requests
+import hashlib
 
    
 
@@ -66,6 +67,24 @@ class RepoDB:
                 self.conn.commit()
         return thumb
     
+    def upload_thumbnail(self, repo, path, data):
+        url = 'https://api.github.com/repos/{}/contents/{}.png'.format(repo, path)
+        response = requests.get(url, headers={'Accept': 'application/vnd.github+json', 'Authorization': 'Bearer {}'.format(self.github_token)})
+        prev_sha = None
+        if response.status_code == 200:
+            prev_sha = response.json()['sha']
+        response = requests.put(
+            url, 
+            json=dict(
+                sha=prev_sha,
+                message="add thumbnail for {}".format(path),
+                content=data,
+            ), 
+            headers={'Accept': 'application/vnd.github+json', 'Authorization': 'Bearer {}'.format(self.github_token)})
+        if response.status_code not in (200, 201):
+            raise Exception(response.json()['message'])
+        
+
     def merge_contents(self, tree1, tree2):
         for node in tree2:
             match = [n for n in tree1 if n['name'] == node['name'] and n['type'] == node['type']]
@@ -90,7 +109,7 @@ class RepoDB:
             if not node['path'].startswith(root):
                 break
             contents.pop(0)
-            node['id'] = '{}{}'.format(id_prefix, node['path'])
+            node['id'] = '{}|{}'.format(id_prefix, node['path'])
             node['name'] = node['path'].split('/')[-1]
             node['name'], _ = os.path.splitext(node['name'])
             del node['sha']
@@ -117,7 +136,7 @@ class RepoDB:
                 (len(r['content_types']) >= 1 and 'thumb' not in r['content_types']) or (
                     len(r['content_types']) >= 2 and 'thumb' in r['content_types']))], key=lambda e: (e['type'] != 'tree', e['name']))
 
-    def get_repository_contents(self, repo_name, path=None):
+    def get_repository_contents(self, repo_name, path=None, id_prefix=''):
         with closing(self.conn.execute("SELECT name, tree_sha, contents from repositories where lower(name) = ?",
                                        (repo_name.lower(),))) as cursor:
             cached_repo = cursor.fetchone()
@@ -126,7 +145,7 @@ class RepoDB:
         repo_name = re.search(r'^https://api\.github\.com/repos/([^/]+/[^/]+)/', latest_commit['url']).groups()[0]
         if not cached_repo or cached_repo[1] != latest_tree:
             # no cache, or cache outdated
-            contents = self._build_tree(self._get_tree(repo_name, latest_tree))
+            contents = self._build_tree(self._get_tree(repo_name, latest_tree), id_prefix=id_prefix)
             if cached_repo is not None:
                 self.conn.execute("DELETE FROM repositories WHERE lower(name) = ?", (repo_name.lower(),))
             self.conn.execute("INSERT INTO repositories (name, tree_sha, contents) VALUES (?, ?, ?)", (repo_name, latest_tree, json.dumps(contents)))

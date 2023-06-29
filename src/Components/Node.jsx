@@ -5,6 +5,7 @@ import {
   FaChevronRight,
   FaFolderOpen,
   FaFolder,
+  FaRedoAlt,
   FaCube,
   FaGithub,
   FaTrash,
@@ -94,12 +95,16 @@ export default function Node({ node, tree, style, dragHandle }) {
         </>
       )}
       {node.isSelected && node.data.type == 'repo' && (
-
-        <button type="button" className="btn btn-sm danger" onClick={(e) => {
-          tree.props.onDelete(node.data.id);
-          e.stopPropagation();
-        }}><FaTrash /></button>
-
+        <>
+          <button type="button" className="btn btn-sm" onClick={(e) => {
+            tree.props.onChange(node.data.id);
+            e.stopPropagation();
+          }}><FaRedoAlt /></button>
+          <button type="button" className="btn btn-sm danger" onClick={(e) => {
+            tree.props.onDelete(node.data.id);
+            e.stopPropagation();
+          }}><FaTrash /></button>
+        </>
 
       )}
     </div>
