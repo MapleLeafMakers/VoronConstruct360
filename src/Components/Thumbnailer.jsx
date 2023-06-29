@@ -39,14 +39,16 @@ export default function Thumbnailer({ file, onClose }) {
         </Row>}
         <Panel style={{ flex: 1 }} />
         <Panel>
-          <Row>
-            <button type="button" className="btn btn-sm" onClick={() => onClose(false)}>Cancel</button>
+          <Row style={{ padding: '8px 12px' }}>
             <div style={{ flex: 1 }}></div>
+
+
             <button disabled={!hasScreenshot} type="button" className="btn btn-sm" onClick={() => {
               rpc.request("upload_thumbnail", { repo: selectedRepo, path: file.path, data: dataUrl }).then(() => {
                 onClose(true);
               });
             }}>Submit</button>
+            <button type="button" style={{ marginLeft: '8px' }} className="btn btn-sm" onClick={() => onClose(false)}>Cancel</button>
           </Row>
         </Panel>
       </div>
