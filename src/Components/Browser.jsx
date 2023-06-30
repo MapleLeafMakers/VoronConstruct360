@@ -1,94 +1,112 @@
 import { React, useEffect, useState, useRef } from 'react';
-import { Combobox } from 'react-widgets';
-import { FaCog, FaPlus, FaCube, FaGithub } from 'react-icons/fa';
+import { FaCog, FaPlus } from 'react-icons/fa';
 import { useWindowSize } from "@uidotdev/usehooks";
 import { Tree } from 'react-arborist';
+import { getMergedTrees, sortTree, setCache, cleanRepoString } from '../Helpers/repodb';
+import { v4 as uuidv4 } from 'uuid';
 import Settings from './Settings';
 import Node from './Node';
 import Panel from './Panel';
 import Row from './Row';
 import Preview from './Preview';
 import Thumbnailer from './Thumbnailer';
-import rpc from '../rpc';
+import CollectionEditor from './CollectionEditor';
+import ModelUploader from './ModelUploader';
+import rpc from '../Helpers/rpc';
 
 
-
-const cleanRepos = (repos) => {
-  const repoList = repos.split(/[,\s]\s*/).map(r => {
-    return r.replace(/\/$/, '').replace(/^(https?:\/\/)?github.com\//, '');
-  });
-  return repoList.join(',');
+const cleanRepos = async (repos, token) => {
+  console.log('cleanRepos(', repos, token, ')');
+  const repoList = await Promise.all(repos.split(/[,\s]\s*/).map(async (r) => {
+    try {
+      const repoData = await cleanRepoString({ input: r, token });
+      return repoData.repr;
+    } catch (err) {
+      alert(err);
+      throw err;
+    }
+  }));
+  return repoList.filter(r => r !== null).join(',');
 };
 
+setCache({
+  async get(key, defaultValue) {
+    let value = await rpc.request("kv_get", { key });
+    if (value === null) {
+      value = defaultValue;
+    }
+    return value;
+  },
+
+  async set(key, value) {
+    return await rpc.request("kv_set", { key, value });
+  }
+});
 
 export default function Browser() {
   const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedFolder, setSelectedFolder] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showThumbnailer, setShowThumbnailer] = useState(false);
   const [apiKey, setApiKey] = useState('');
   const [repoOptions, setRepoOptions] = useState([]);
   const [searchString, setSearchString] = useState('');
   const [contents, setContents] = useState([]);
+  const [selectedRoot, setSelectedRoot] = useState(null)
   const [repo, setRepo] = useState('');
+  const [showCollectionEditor, setShowCollectionEditor] = useState(false);
+  const [showModelUploader, setShowModelUploader] = useState(false);
+  const [editingCollection, setEditingCollection] = useState(null);
+
   const tree = useRef();
 
   const windowSize = useWindowSize();
 
   useEffect(() => {
     const fetchData = async () => {
-      setTimeout(() => {
-        rpc.request('get_state', {}).then((state) => {
-          setApiKey(state.token);
-          setContents(state.repo_list || []);
-        }).catch(err => alert(err));
-      }, 100);
+      rpc.request('kv_mget', { keys: ['token', 'collections'] }).then(({ collections, token }) => {
+        collections = collections || [];
+        setApiKey(token || '');
+        Promise.all(collections.map(async (c) => {
+          c.children = sortTree(await getMergedTrees({ repositories: c.repositories, token: token, id_prefix: c.id }));
+          return c;
+        })).then((result) => {
+          setContents(result);
+        });
+      }).catch(err => alert(err));
     }
     fetchData();
   }, []);
 
-
-  useEffect(() => {
-    localStorage.setItem('repo', JSON.stringify(repo));
-  }, [repo]);
-
   const updateRepoList = (newContents) => {
-    rpc.request('set_repo_list', { repos: newContents.map(n => ({ ...n, children: [] })) })
+    rpc.request('kv_set', { key: 'collections', value: newContents.map(n => ({ ...n, children: [] })) })
   };
 
-  const newContents = [];
-
-  const reloadRepo = async (repo) => {
+  const reloadCollection = async (collection) => {
+    const newContents = [];
     for (let r of contents) {
-      if (r.id != repo) {
+      if (r.id != collection.id) {
         newContents.push({ ...r });
       } else {
         newContents.push({
           ...r,
-          children: await rpc.request("get_repo_tree", { repo, token: apiKey })
+          children: sortTree(await getMergedTrees({ repositories: collection.repositories, token: apiKey, id_prefix: collection.id })),
         })
       }
-
     }
     setContents(newContents);
   }
 
   const addRepo = async () => {
-    const cleanedRepo = cleanRepos(repo);
-    let children;
-    try {
-      children = await rpc.request("get_repo_tree", { repo: cleanedRepo, token: apiKey });
-    } catch (e) {
-      alert(e);
-      setRepo('');
-      return;
-    }
-
-    setRepo(cleanedRepo);
-    const newContents = [...contents.filter(r => r.id !== cleanedRepo), {
-      id: cleanedRepo,
+    const cleanedRepo = await cleanRepos(repo, apiKey);
+    const _id = uuidv4();
+    const newContents = [...contents, {
+      id: _id,
+      display_name: cleanedRepo,
+      repositories: cleanedRepo.split(','),
       type: 'repo',
       name: cleanedRepo,
-      children: children,
+      children: sortTree(await getMergedTrees({ repositories: cleanedRepo.split(','), token: apiKey, id_prefix: _id })),
     }];
     setContents(newContents);
     setRepo('');
@@ -98,6 +116,11 @@ export default function Browser() {
   const updateSearch = (search) => {
     setSearchString(search);
   };
+
+  const handleEditCollection = (collection) => {
+    setEditingCollection(collection);
+    setShowCollectionEditor(true);
+  }
 
   const searchFilter = (node, search) => {
     const tokens = search.toLowerCase().split(/\s+/);
@@ -130,15 +153,26 @@ export default function Browser() {
             searchTerm={searchString}
             searchMatch={searchFilter}
             rowHeight={24}
+            token={apiKey}
             data={contents}
-            onChange={reloadRepo}
+            onUploadModel={(nodeId) => {
+              console.log("Upload model to", nodeId);
+              setShowModelUploader(true);
+            }}
+            onReload={(collectionId) => reloadCollection(contents.filter(c => c.id == collectionId)[0])}
+            onChange={handleEditCollection}
             onSelect={(e) => {
               if (e && e.length && e[0]?.data.type == 'blob') {
-                console.log("setting selected file to", e[0].data);
                 setSelectedFile(e[0].data);
-              } else {
-                console.log("No selection", e);
+                setSelectedFolder(null);
+                setSelectedRoot(e[0].data.id.split('|')[0])
+              } else if (e && e.length && e[0].data.type == 'tree') {
                 setSelectedFile(null);
+                setSelectedFolder(e[0].data);
+                setSelectedRoot(e[0].data.id.split('|')[0]);
+              } else if (e && e.length && e[0].data.type == 'repo') {
+                setSelectedFile(null);
+                setSelectedRoot(e[0].data.id);
               }
 
             }}
@@ -151,25 +185,24 @@ export default function Browser() {
             indent={16}>{Node}</Tree>
         </div>
         <Row>
-          <label htmlFor="repo-input">Add Repository </label>
-          <Combobox
-            data={repoOptions}
-            inputProps={{ className: 'input', id: 'repo-input' }}
+          <label htmlFor="repo-input">Add repository </label>
+          <input
+            className="input"
+            style={{ flex: 1 }}
             value={repo}
-            onToggle={(isOpening) => {
-              if (!isOpening) return;
-              rpc.request('get_repo_options').then((results) => {
-                setRepoOptions(() => results);
-              });
+            onChange={(event) => {
+              setRepo(event.target.value);
             }}
-            onChange={(value) => {
-              setRepo(value);
+            onKeyDown={(event) => {
+              if (event.code == 'Enter') {
+                addRepo();
+              }
             }}
           />
-          <button type="button" style={{ marginLeft: '4px' }} className="btn" onClick={addRepo}><FaPlus /></button>
+          <button type="button" className="btn" onClick={addRepo}><FaPlus /></button>
         </Row>
       </Panel >
-      <Preview file={selectedFile} onClickImage={() => setShowThumbnailer(true)} />
+      <Preview token={apiKey} file={selectedFile} onClickImage={() => setShowThumbnailer(true)} />
       {
         showSettings && <Settings
           onClose={() => setShowSettings(false)}
@@ -181,19 +214,48 @@ export default function Browser() {
       }
       {
         showThumbnailer && <Thumbnailer
+          token={apiKey}
+          collection={contents.filter(r => r.id === selectedRoot)[0]}
           file={selectedFile}
           onClose={
             (updated) => {
-              console.log('updated', updated);
               setShowThumbnailer(false);
               if (updated) {
                 const repoId = selectedFile.id.split('|')[0];
-                reloadRepo(repoId);
+                reloadCollection(repoId);
               }
             }
           } />
       }
-
+      {
+        showCollectionEditor && editingCollection && <CollectionEditor
+          token={apiKey}
+          collection={editingCollection}
+          onChange={(newCollection) => {
+            const newContents = [...contents];
+            newContents.splice(contents.indexOf(editingCollection), 1, newCollection);
+            setContents(newContents);
+            setEditingCollection(null);
+            updateRepoList(newContents);
+          }}
+          onClose={() => {
+            setEditingCollection(null);
+            setShowCollectionEditor(false);
+          }} />
+      }
+      {showModelUploader && <ModelUploader
+        token={apiKey}
+        path={selectedFolder.path}
+        collection={contents.filter(r => r.id === selectedRoot)[0]}
+        onClose={
+          (updated) => {
+            setShowModelUploader(false);
+            if (updated) {
+              reloadCollection(selectedRoot);
+            }
+          }
+        } />
+      }
     </div >
   );
 }

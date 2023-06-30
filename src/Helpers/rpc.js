@@ -2,7 +2,15 @@ import { JSONRPCClient } from 'json-rpc-2.0';
 
 const rpc = new JSONRPCClient((jsonRPCRequest) => {
   console.log("Sending", jsonRPCRequest);
-  window.adsk.fusionSendData('jsonrpc', JSON.stringify(jsonRPCRequest))
+  if (window.adsk === undefined) {
+    setTimeout(() => {
+      console.log('Waiting for adsk...');
+      window.adsk.fusionSendData('jsonrpc', JSON.stringify(jsonRPCRequest));
+    }, 100);
+  } else {
+    window.adsk.fusionSendData('jsonrpc', JSON.stringify(jsonRPCRequest));
+  }
+
 });
 
 window.fusionJavaScriptHandler = {

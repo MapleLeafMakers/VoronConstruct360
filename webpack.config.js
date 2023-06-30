@@ -27,13 +27,12 @@ module.exports = {
   plugins: [
     new CopyPlugin({
       patterns: [
-        { from: 'plugin', to: '' },
         { from: 'public/base.css', to: '' },
       ],
     }),
     new HtmlWebpackPlugin({
       template: './public/index.html',
-      filename: './palette.html',
+      filename: './index.html',
     }),
   ],
 };

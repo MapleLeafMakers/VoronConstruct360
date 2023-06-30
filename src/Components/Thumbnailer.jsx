@@ -1,21 +1,28 @@
 import PropTypes from 'prop-types';
 import { React, useEffect, useState } from 'react';
 import { FaCube, FaCamera } from 'react-icons/fa';
+import { blobUrlToDataUrl, uploadThumbnail } from '../Helpers/repodb';
+import rpc from '../Helpers/rpc';
 import Row from './Row';
 import Panel from './Panel';
-import rpc from '../rpc';
 
-export default function Thumbnailer({ file, onClose }) {
+
+export default function Thumbnailer({ file, onClose, token, collection }) {
   const [dataUrl, setDataUrl] = useState(null);
   const [hasScreenshot, setHasScreenshot] = useState(false);
-  const allRepos = [...new Set(Object.values(file.content_types).map(ct => ct.url.replace(/^https?:\/\/api.github.com\/repos\//, '').split('/').slice(0, 2).join('/')))];
+  console.log(collection);
+  const allRepos = [...collection.repositories];
   const [selectedRepo, setSelectedRepo] = useState(allRepos[0]);
 
   useEffect(() => {
     if (file?.content_types?.thumb) {
-      rpc.request("get_thumb", { url: file.content_types.thumb.url }).then(setDataUrl);
+      blobUrlToDataUrl({ blobUrl: file.content_types.thumb.url, token: token }).then(result => {
+        setDataUrl(result);
+      });
+    } else {
+      setDataUrl(null);
     }
-  }, [file])
+  }, [file]);
 
   return (
     <div style={{ zIndex: 99999, background: 'rgba(0,0,0,0.5)', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
@@ -41,19 +48,24 @@ export default function Thumbnailer({ file, onClose }) {
         <Panel>
           <Row style={{ padding: '8px 12px' }}>
             <div style={{ flex: 1 }}></div>
-
-
+            <button type="button" style={{ marginRight: '8px' }} className="btn btn-sm" onClick={() => onClose(false)}>Cancel</button>
             <button disabled={!hasScreenshot} type="button" className="btn btn-sm" onClick={() => {
-              rpc.request("upload_thumbnail", { repo: selectedRepo, path: file.path, data: dataUrl }).then(() => {
+              let [repoPath, branch] = selectedRepo.split('#');
+              let repo = repoPath.split('/').slice(0, 2).join('/');
+              let path = file.path;
+              let data = dataUrl.substring('data:image/png;base64,'.length);
+              let sha = file?.content_types?.thumb?.url;
+              if (sha) {
+                sha = sha.split('/').pop();
+              }
+              uploadThumbnail({ repo, path, branch, data, token, sha }).then(() => {
                 onClose(true);
-              });
+              })
             }}>Submit</button>
-            <button type="button" style={{ marginLeft: '8px' }} className="btn btn-sm" onClick={() => onClose(false)}>Cancel</button>
           </Row>
         </Panel>
       </div>
-
-    </div >
+    </div>
   );
 }
 

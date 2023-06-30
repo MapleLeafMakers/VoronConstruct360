@@ -1,8 +1,8 @@
-import rpc from '../rpc';
 import { useState, useEffect, React } from 'react';
 import { FaCube, FaGithub } from 'react-icons/fa';
 import Panel from './Panel';
 import Row from './Row';
+import { blobUrlToDataUrl } from '../Helpers/repodb';
 
 const sizeOf = (bytes) => {
     if (bytes == 0) { return "0.00 B"; }
@@ -20,14 +20,14 @@ const repoFromUrl = (url) => {
 }
 
 
-export default function Preview({ file, onClickImage }) {
+export default function Preview({ file, onClickImage, token }) {
     const [dataUrl, setDataUrl] = useState('');
 
     useEffect(() => {
         if (file?.content_types?.thumb) {
-            rpc.request("get_thumb", { url: file.content_types.thumb.url }).then(result => {
+            blobUrlToDataUrl({ blobUrl: file.content_types.thumb.url, token: token }).then(result => {
                 setDataUrl(result);
-            })
+            });
         } else {
             setDataUrl(null);
         }

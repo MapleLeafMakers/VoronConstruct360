@@ -24,7 +24,6 @@
     "webpack-dev-server": "^4.15.1"
   },
   "dependencies": {
-    "@octokit/rest": "^19.0.13",
     "@uidotdev/usehooks": "^2.0.1",
     "axios": "^1.4.0",
     "clsx": "^1.2.1",
@@ -36,7 +35,7 @@
     "react-dom": "^18.2.0",
     "react-icons": "^4.10.1",
     "react-style-proptype": "^3.2.2",
-    "react-widgets": "^5.8.4",
-    "spinners-react": "^1.0.7"
+    "spinners-react": "^1.0.7",
+    "uuid": "^9.0.0"
   }
 }

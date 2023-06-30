@@ -15,16 +15,6 @@ html {
     touch-action: manipulation;
 }
 
-.rw-combobox {
-    flex: 1;
-}
-
-.rw-widget-picker,
-.rw-widget-container {
-    min-height: 24px !important;
-    border-radius: 0px !important;
-}
-
 #appwrap {
     height: 100%;
     display: flex;
@@ -37,7 +27,12 @@ html {
     border: 1px solid rgb(185, 185, 185);
     color: rgb(102, 102, 102);
     border-radius: 0px;
+}
 
+.btn:focus {
+    outline-style: ridge;
+    outline-width: 1px;
+    outline-color: #0160BF;
 }
 
 .btn:disabled {
@@ -59,6 +54,20 @@ html {
     height: 20px;
     font-size: 12px;
     line-height: 12px;
+}
+
+.btn-group {
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-end;
+}
+
+.btn-group .btn {
+    border-right: 0px;
+}
+
+.btn-group .btn:last-child {
+    border-right: 1px solid rgb(185, 185, 185);
 }
 
 .panel {
@@ -106,6 +115,15 @@ label {
     line-height: 20px;
     margin-right: 4px;
     color: rgb(102, 102, 102);
+}
+
+.dialog-header {
+    margin: 4px 0px;
+}
+
+.dialog-header>svg {
+    vertical-align: text-top;
+    margin: 0px 8px;
 }
 
 .node {
