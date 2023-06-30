@@ -1,3 +1,0 @@
-six
-requests
-damn-simple-jsonrpc-server
