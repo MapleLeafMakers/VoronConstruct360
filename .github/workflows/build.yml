@@ -28,8 +28,11 @@ jobs:
     - name: create changelog
       run: |
         git log --pretty=format:'%s' $(git describe --tags --abbrev=0 `git rev-list --tags --max-count=2 | tail -1`)..HEAD > CHANGELOG
+        if [[ $(git diff $(git describe --tags --abbrev=0 `git rev-list --tags --max-count=2 | tail -1`) plugin/) ]]; then echo "PLUGIN_CHANGED=true" >> $GITHUB_OUTPUT; fi
+      id: create_changelog
 
     - name: Create Release
+      if: ${{ steps.create_changelog.outputs.PLUGIN_CHANGED }}
       id: create_release
       uses: actions/create-release@v1
       env:
@@ -41,14 +44,17 @@ jobs:
         body_path: CHANGELOG
     
     - name: move to directory
+      if: ${{ steps.create_changelog.outputs.PLUGIN_CHANGED }}
       run: mv plugin/ Construct
 
     - name: zip artifacts
+      if: ${{ steps.create_changelog.outputs.PLUGIN_CHANGED }}
       uses: montudor/action-zip@v1
       with:
         args: zip -qq -r Construct.zip Construct/
 
     - name: Upload the artifacts
+      if: ${{ steps.create_changelog.outputs.PLUGIN_CHANGED }}
       uses: skx/github-action-publish-binaries@master      
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
