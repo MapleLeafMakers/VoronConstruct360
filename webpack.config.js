@@ -27,7 +27,6 @@ module.exports = {
   plugins: [
     new CopyPlugin({
       patterns: [
-        { from: 'plugin', to: '' },
         { from: 'public/base.css', to: '' },
       ],
     }),

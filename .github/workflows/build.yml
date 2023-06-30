@@ -40,7 +40,7 @@ jobs:
         body_path: CHANGELOG
     
     - name: move to directory
-      run: mv dist Construct
+      run: mv plugin/ Construct
 
     - name: zip artifacts
       uses: montudor/action-zip@v1
@@ -53,4 +53,14 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         args: 'Construct.zip'
-        releaseId: ${{steps.create_release.outputs.id}}     
+        releaseId: ${{steps.create_release.outputs.id}}
+
+    - name: Publish frontend to GH Pages
+      run: |
+          git config user.name "Github Actions Bot"
+          git config user.email "<>"
+          git checkout gh-pages
+          cp -R dist/* .
+          git add .
+          git commit -m 'Built from ${{ github.ref }}'
+          git push origin gh-pages

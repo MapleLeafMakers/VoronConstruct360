@@ -189,7 +189,7 @@ if has_adsk:
                 # Create and display the palette.
                 palette = _ui.palettes.itemById('voronConstruct')
                 if not palette:
-                    palette = _ui.palettes.add('voronConstruct', 'Voron Construct, CAD...Lots of CAD', 'index.html', True, True, True, 700, 200, True)
+                    palette = _ui.palettes.add('voronConstruct', 'Voron Construct, CAD...Lots of CAD', 'https://mapleleafmakers.github.io/VoronConstruct360/', True, True, True, 700, 200, True)
 
                     # Dock the palette to the right side of Fusion window.
                     palette.dockingState = adsk.core.PaletteDockingStates.PaletteDockStateRight
