@@ -35,6 +35,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
       with:
+        prerelease: ${{ contains(github.ref, 'pre') ||  contains(github.ref, 'beta') || contains(github.ref, 'alpha') || contains(github.ref, 'danger') }}
         tag_name: ${{ github.ref }}
         release_name: Release ${{ github.ref }}
         body_path: CHANGELOG
@@ -56,12 +57,26 @@ jobs:
         releaseId: ${{steps.create_release.outputs.id}}
 
     - name: Publish frontend to GH Pages
+      if: ${{ !(contains(github.ref, 'pre') ||  contains(github.ref, 'beta') || contains(github.ref, 'alpha') || contains(github.ref, 'danger')) }}
       run: |
           git config user.name "Github Actions Bot"
           git config user.email "<>"
           git fetch
           git checkout gh-pages
           cp -R dist/* .
+          git add .
+          git commit -m 'Built from ${{ github.ref }}'
+          git push origin gh-pages
+
+    - name: Publish beta frontend to GH Pages
+      if: ${{ (contains(github.ref, 'pre') ||  contains(github.ref, 'beta') || contains(github.ref, 'alpha') || contains(github.ref, 'danger')) }}
+      run: |
+          git config user.name "Github Actions Bot"
+          git config user.email "<>"
+          git fetch
+          git checkout gh-pages
+          mkdir -p ./beta
+          cp -R ./dist/* ./beta/
           git add .
           git commit -m 'Built from ${{ github.ref }}'
           git push origin gh-pages
