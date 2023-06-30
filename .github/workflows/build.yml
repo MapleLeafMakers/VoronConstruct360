@@ -29,6 +29,7 @@ jobs:
       run: |
         git log --pretty=format:'%s' $(git describe --tags --abbrev=0 `git rev-list --tags --max-count=2 | tail -1`)..HEAD > CHANGELOG
         if [[ $(git diff $(git describe --tags --abbrev=0 `git rev-list --tags --max-count=2 | tail -1`) plugin/) ]]; then echo "PLUGIN_CHANGED=true" >> $GITHUB_OUTPUT; fi
+        echo "IS_PRERELEASE=${{ contains(github.ref, 'pre') ||  contains(github.ref, 'beta') || contains(github.ref, 'alpha') || contains(github.ref, 'danger') }}" >> $GITHUB_OUTPUT
       id: create_changelog
 
     - name: Create Release
@@ -63,7 +64,7 @@ jobs:
         releaseId: ${{steps.create_release.outputs.id}}
 
     - name: Publish frontend to GH Pages
-      if: ${{ !(contains(github.ref, 'pre') ||  contains(github.ref, 'beta') || contains(github.ref, 'alpha') || contains(github.ref, 'danger')) }}
+      if: ${{ steps.create_changelog.outputs.IS_PRERELEASE }}
       run: |
           git config user.name "Github Actions Bot"
           git config user.email "<>"
@@ -75,7 +76,7 @@ jobs:
           git push origin gh-pages
 
     - name: Publish beta frontend to GH Pages
-      if: ${{ (contains(github.ref, 'pre') ||  contains(github.ref, 'beta') || contains(github.ref, 'alpha') || contains(github.ref, 'danger')) }}
+      if: ${{ !steps.create_changelog.outputs.IS_PRERELEASE }}
       run: |
           git config user.name "Github Actions Bot"
           git config user.email "<>"
