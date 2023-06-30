@@ -67,7 +67,7 @@ jobs:
         releaseId: ${{steps.create_release.outputs.id}}
 
     - name: Publish frontend to GH Pages
-      if: ${{ steps.create_changelog.outputs.IS_PRERELEASE == false }}
+      if: ${{ steps.create_changelog.outputs.IS_PRERELEASE == 'false' }}
       run: |
           git config user.name "Github Actions Bot"
           git config user.email "<>"
@@ -79,7 +79,7 @@ jobs:
           git push origin gh-pages
 
     - name: Publish beta frontend to GH Pages
-      if: ${{ steps.create_changelog.outputs.IS_PRERELEASE == true }}
+      if: ${{ steps.create_changelog.outputs.IS_PRERELEASE == 'true' }}
       run: |
           git config user.name "Github Actions Bot"
           git config user.email "<>"
