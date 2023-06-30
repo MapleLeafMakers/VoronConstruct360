@@ -44,6 +44,9 @@ jobs:
         release_name: Release ${{ github.ref }}
         body_path: CHANGELOG
     
+    - name: Remove CHANGELOG
+      run: rm CHANGELOG
+
     - name: move to directory
       if: ${{ steps.create_changelog.outputs.PLUGIN_CHANGED }}
       run: mv plugin/ Construct
@@ -64,7 +67,7 @@ jobs:
         releaseId: ${{steps.create_release.outputs.id}}
 
     - name: Publish frontend to GH Pages
-      if: ${{ steps.create_changelog.outputs.IS_PRERELEASE }}
+      if: ${{ steps.create_changelog.outputs.IS_PRERELEASE == "false" }}
       run: |
           git config user.name "Github Actions Bot"
           git config user.email "<>"
@@ -76,7 +79,7 @@ jobs:
           git push origin gh-pages
 
     - name: Publish beta frontend to GH Pages
-      if: ${{ !steps.create_changelog.outputs.IS_PRERELEASE }}
+      if: ${{ steps.create_changelog.outputs.IS_PRERELEASE == "true" }}
       run: |
           git config user.name "Github Actions Bot"
           git config user.email "<>"
