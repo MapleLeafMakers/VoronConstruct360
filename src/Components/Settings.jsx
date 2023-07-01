@@ -7,6 +7,7 @@ import rpc from '../Helpers/rpc';
 
 export default function Settings({ onClose, apiKey, setApiKey }) {
   const [token, setToken] = useState(apiKey);
+  const [interfaceUrl, setInterfaceUrl] = useState(window.location);
 
   return (
     <div style={{ zIndex: 99999, background: 'rgba(0,0,0,0.5)', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
@@ -25,6 +26,19 @@ export default function Settings({ onClose, apiKey, setApiKey }) {
             />
           </Row>
         </Panel>
+        <Panel style={{ padding: '8px' }}>
+          <Row>
+            <label htmlFor="interface-url-input">Interface URL </label>
+            <input
+              id="interface-url-input"
+              value={interfaceUrl}
+              className="input"
+              onChange={(e) => {
+                setInterfaceUrl(e.target.value);
+              }}
+            />
+          </Row>
+        </Panel>
         <Panel style={{ flex: 1 }} />
         <Panel>
           <Row style={{ padding: '8px 12px' }}>
@@ -34,6 +48,9 @@ export default function Settings({ onClose, apiKey, setApiKey }) {
               setApiKey(token);
               rpc.request('kv_set', { key: 'token', value: token });
               onClose();
+              setTimeout(() => {
+                window.location = interfaceUrl;
+              }, 100);
             }}>OK</button>
           </Row>
         </Panel>

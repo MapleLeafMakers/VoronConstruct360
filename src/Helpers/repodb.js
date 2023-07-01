@@ -176,6 +176,7 @@ export function _mergeNodes(n1, n2) {
 }
 
 export function _mergeTrees(t1, t2) {
+  console.log("merging", t1, t2);
   const results = [...t1];
   t2.forEach(node => {
     let match = t1.filter(n => n.name == node.name && n.type == node.type)[0];
@@ -184,12 +185,16 @@ export function _mergeTrees(t1, t2) {
       return;
     }
     if (match.type === 'tree') {
+      console.log("Merge child trees", match.children, node.children)
       match.children = _mergeTrees(match.children, node.children);
     } else {
+      console.log("Merging nodes", match, node);
       match = _mergeNodes(match, node);
+      results.splice(results.indexOf(match), 1);
       results.push(match);
     }
   });
+  console.log("Merged result", results);
   return results;
 }
 
@@ -239,13 +244,7 @@ export function _buildTree(tree, root, id_prefix = '') {
     results.push(node);
   }
 
-  let _results = results.filter(r => {
-    if (r.type == 'tree') return true;
-    if (Object.keys(r.content_types).length >= 1 && r.content_types.thumb === undefined) return true;
-    if (Object.keys(r.content_types).length >= 2 && r.content_types.thumb !== undefined) return true;
-    return false;
-  });
-  return _results;
+  return results;
 }
 
 export async function getRepoTree({ repo, branch, token, id_prefix }) {

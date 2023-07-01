@@ -251,7 +251,7 @@ export default function Browser() {
           (updated) => {
             setShowModelUploader(false);
             if (updated) {
-              reloadCollection(selectedRoot);
+              reloadCollection(contents.filter(r => r.id === selectedRoot)[0]);
             }
           }
         } />
