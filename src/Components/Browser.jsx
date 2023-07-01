@@ -2,8 +2,9 @@ import { React, useEffect, useState, useRef } from 'react';
 import { FaCog, FaPlus } from 'react-icons/fa';
 import { useWindowSize } from "@uidotdev/usehooks";
 import { Tree } from 'react-arborist';
-import { getMergedTrees, sortTree, setCache, cleanRepoString } from '../Helpers/repodb';
+import { getMergedTrees, setCache, cleanRepoString } from '../Helpers/repodb';
 import { v4 as uuidv4 } from 'uuid';
+import { SpinnerCircular } from 'spinners-react';
 import Settings from './Settings';
 import Node from './Node';
 import Panel from './Panel';
@@ -57,23 +58,26 @@ export default function Browser() {
   const [showCollectionEditor, setShowCollectionEditor] = useState(false);
   const [showModelUploader, setShowModelUploader] = useState(false);
   const [editingCollection, setEditingCollection] = useState(null);
-
+  const [loadingRepos, setLoadingRepos] = useState(false)
   const tree = useRef();
 
   const windowSize = useWindowSize();
 
   useEffect(() => {
+    setLoadingRepos(true);
     const fetchData = async () => {
       rpc.request('kv_mget', { keys: ['token', 'collections'] }).then(({ collections, token }) => {
         collections = collections || [];
         setApiKey(token || '');
         Promise.all(collections.map(async (c) => {
-          c.children = sortTree(await getMergedTrees({ repositories: c.repositories, token: token, id_prefix: c.id }));
+          c.children = await getMergedTrees({ repositories: c.repositories, token: token, id_prefix: c.id, index: true });
           return c;
         })).then((result) => {
           setContents(result);
         });
-      }).catch(err => alert(err));
+      }).catch(err => alert(err)).finally(() => {
+        setLoadingRepos(false);
+      });
     }
     fetchData();
   }, []);
@@ -90,7 +94,7 @@ export default function Browser() {
       } else {
         newContents.push({
           ...r,
-          children: sortTree(await getMergedTrees({ repositories: collection.repositories, token: apiKey, id_prefix: collection.id })),
+          children: await getMergedTrees({ repositories: collection.repositories, token: apiKey, id_prefix: collection.id, index: true }),
         })
       }
     }
@@ -106,7 +110,7 @@ export default function Browser() {
       repositories: cleanedRepo.split(','),
       type: 'repo',
       name: cleanedRepo,
-      children: sortTree(await getMergedTrees({ repositories: cleanedRepo.split(','), token: apiKey, id_prefix: _id })),
+      children: await getMergedTrees({ repositories: cleanedRepo.split(','), token: apiKey, id_prefix: _id, index: true }),
     }];
     setContents(newContents);
     setRepo('');
@@ -124,7 +128,10 @@ export default function Browser() {
 
   const searchFilter = (node, search) => {
     const tokens = search.toLowerCase().split(/\s+/);
-    return tokens.every((t) => node.data.path && node.data.path.toLowerCase().indexOf(t) !== -1);
+    return tokens.every((t) => {
+      return ((node.data.meta && node.data.meta.keywords && node.data.meta.keywords.indexOf(t) !== -1) ||
+        (node.data.path && node.data.path.toLowerCase().indexOf(t) !== -1))
+    });
   };
 
   return (
@@ -144,64 +151,66 @@ export default function Browser() {
           <button aria-label="Settings" type="button" style={{ marginLeft: '4px', paddingTop: '4px' }} className="btn" onClick={() => setShowSettings(true)}><FaCog /></button>
         </Row>
       </Panel>
-      <Panel style={{ padding: '4px' }}>
-        <div className="treeWrap">
-          <Tree
-            ref={tree}
-            width="100%"
-            height={windowSize.height - (64 + (selectedFile ? 200 : 0))}
-            searchTerm={searchString}
-            searchMatch={searchFilter}
-            rowHeight={24}
-            token={apiKey}
-            data={contents}
-            onUploadModel={(nodeId) => {
-              console.log("Upload model to", nodeId);
-              setShowModelUploader(true);
-            }}
-            onReload={(collectionId) => reloadCollection(contents.filter(c => c.id == collectionId)[0])}
-            onChange={handleEditCollection}
-            onSelect={(e) => {
-              if (e && e.length && e[0]?.data.type == 'blob') {
-                setSelectedFile(e[0].data);
-                setSelectedFolder(null);
-                setSelectedRoot(e[0].data.id.split('|')[0])
-              } else if (e && e.length && e[0].data.type == 'tree') {
-                setSelectedFile(null);
-                setSelectedFolder(e[0].data);
-                setSelectedRoot(e[0].data.id.split('|')[0]);
-              } else if (e && e.length && e[0].data.type == 'repo') {
-                setSelectedFile(null);
-                setSelectedRoot(e[0].data.id);
-              }
+      {loadingRepos ?
+        <Panel style={{ flex: 1, display: 'flex', flexDirection: 'row', justifyContent: 'center' }}><SpinnerCircular /></Panel> :
+        <Panel style={{ padding: '4px' }}>
+          <div className="treeWrap">
+            <Tree
+              ref={tree}
+              width="100%"
+              height={windowSize.height - (64 + (selectedFile ? 200 : 0))}
+              searchTerm={searchString}
+              searchMatch={searchFilter}
+              rowHeight={24}
+              token={apiKey}
+              data={contents}
+              onUploadModel={(nodeId) => {
+                console.log("Upload model to", nodeId);
+                setShowModelUploader(true);
+              }}
+              onReload={(collectionId) => reloadCollection(contents.filter(c => c.id == collectionId)[0])}
+              onChange={handleEditCollection}
+              onSelect={(e) => {
+                if (e && e.length && e[0]?.data.type == 'blob') {
+                  setSelectedFile(e[0].data);
+                  setSelectedFolder(null);
+                  setSelectedRoot(e[0].data.id.split('|')[0])
+                } else if (e && e.length && e[0].data.type == 'tree') {
+                  setSelectedFile(null);
+                  setSelectedFolder(e[0].data);
+                  setSelectedRoot(e[0].data.id.split('|')[0]);
+                } else if (e && e.length && e[0].data.type == 'repo') {
+                  setSelectedFile(null);
+                  setSelectedRoot(e[0].data.id);
+                }
 
-            }}
-            onDelete={(nodeId) => {
-              const newContents = [...contents.filter(r => r['id'] !== nodeId)];
-              setContents(newContents);
-              updateRepoList(newContents);
-            }}
-            openByDefault={false}
-            indent={16}>{Node}</Tree>
-        </div>
-        <Row>
-          <label htmlFor="repo-input">Add repository </label>
-          <input
-            className="input"
-            style={{ flex: 1 }}
-            value={repo}
-            onChange={(event) => {
-              setRepo(event.target.value);
-            }}
-            onKeyDown={(event) => {
-              if (event.code == 'Enter') {
-                addRepo();
-              }
-            }}
-          />
-          <button type="button" className="btn" onClick={addRepo}><FaPlus /></button>
-        </Row>
-      </Panel >
+              }}
+              onDelete={(nodeId) => {
+                const newContents = [...contents.filter(r => r['id'] !== nodeId)];
+                setContents(newContents);
+                updateRepoList(newContents);
+              }}
+              openByDefault={false}
+              indent={16}>{Node}</Tree>
+          </div>
+          <Row>
+            <label htmlFor="repo-input">Add repository </label>
+            <input
+              className="input"
+              style={{ flex: 1 }}
+              value={repo}
+              onChange={(event) => {
+                setRepo(event.target.value);
+              }}
+              onKeyDown={(event) => {
+                if (event.code == 'Enter') {
+                  addRepo();
+                }
+              }}
+            />
+            <button type="button" className="btn" onClick={addRepo}><FaPlus /></button>
+          </Row>
+        </Panel>}
       <Preview token={apiKey} file={selectedFile} onClickImage={() => setShowThumbnailer(true)} />
       {
         showSettings && <Settings

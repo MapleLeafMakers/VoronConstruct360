@@ -131,6 +131,15 @@ export async function getRepository({ repo, token }) {
   }
 }
 
+export async function downloadBlobJson({ url, token }) {
+  const response = await axios.get(url, { headers: getHeaders(token) });
+  let content = response.data.content;
+  if (response.data.encoding === 'base64') {
+    content = atob(content);
+  }
+  return JSON.parse(content);
+}
+
 export async function blobUrlToDataUrl({ blobUrl, token }) {
   let cached = await _cache.get(`thumb:${blobUrl}`, null);
   if (cached === null) {
@@ -168,6 +177,8 @@ export function _getContentType(path) {
     return extension.substring(1);
   } else if (extension === '.png') {
     return 'thumb';
+  } else if (extension === '.json') {
+    return 'meta';
   }
 }
 
@@ -189,13 +200,31 @@ export function _mergeTrees(t1, t2) {
       match.children = _mergeTrees(match.children, node.children);
     } else {
       console.log("Merging nodes", match, node);
-      match = _mergeNodes(match, node);
+
       results.splice(results.indexOf(match), 1);
+      match = _mergeNodes(match, node);
+
       results.push(match);
     }
   });
   console.log("Merged result", results);
   return results;
+}
+
+export function pruneTree(tree) {
+  const pruned = [];
+  tree.forEach(n => {
+    if (n.type === 'tree') {
+      n.children = pruneTree(n.children);
+      pruned.push(n);
+    } else {
+      const ct = n.content_types;
+      if (ct.step || ct.f3d || ct.dxf || ct.svg) {
+        pruned.push(n);
+      }
+    }
+  })
+  return pruned;
 }
 
 export function sortTree(tree) {
@@ -204,6 +233,56 @@ export function sortTree(tree) {
   })
   tree.sort(fileFolderSort);
   return tree;
+}
+
+export function _getChildNodeByPath(tree, path, currentDir) {
+  console.log("gcnbp", tree, path, currentDir);
+  for (const p of path.split('/')) {
+    tree = tree.filter(n => n.name === p)[0];
+    if (!tree) return null;
+  }
+  return tree;
+}
+export function _mergeKeywords(kw1, kw2) {
+  kw1 = kw1 || [];
+  kw2 = kw2 || [];
+
+  kw1 = Array.isArray(kw1) ? kw1 : kw1.split(/\s+/);
+  kw2 = Array.isArray(kw2) ? kw2 : kw2.split(/\s+/);
+  const kw1Lower = kw1.map((kw) => kw.toLowerCase());
+
+  return [...kw1, ...kw2.filter(kw => kw1Lower.indexOf(kw.toLowerCase()) === -1)].join(' ');
+}
+
+export async function indexTree({ tree, token }) {
+  console.log("Indexing Tree", JSON.parse(JSON.stringify(tree)))
+  const results = [];
+  for (let n of tree) {
+    if (n.type === 'tree') {
+      results.push({ ...n, children: await indexTree({ tree: n.children, token }) })
+      continue;
+    }
+    if (n.content_types.meta) {
+      results.push({ ...n, meta: await downloadBlobJson({ url: n.content_types.meta.url, token }) });
+      continue;
+    }
+    results.push({ ...n });
+  }
+
+  const metaFile = results.filter(n => n.name == '_meta' && n?.content_types?.meta)[0];
+  if (metaFile) {
+    console.log("found metaFile", metaFile);
+    const dirMeta = await downloadBlobJson({ url: metaFile.content_types.meta.url, token });
+    const currentDir = metaFile.path.split('/').slice(0, -1).join('/') + '/';
+    for (const [path, meta] of Object.entries(dirMeta)) {
+      const node = _getChildNodeByPath(results, path, currentDir);
+      node.meta = {
+        ...node?.meta, ...meta, keywords: _mergeKeywords(node?.meta?.keywords, meta?.keywords)
+      }
+    }
+    return results.filter(n => n.id !== metaFile.id);
+  }
+  return results;
 }
 
 export function _buildTree(tree, root, id_prefix = '') {
@@ -249,7 +328,7 @@ export function _buildTree(tree, root, id_prefix = '') {
 
 export async function getRepoTree({ repo, branch, token, id_prefix }) {
   branch = await getBranch({ repo, branch, token });
-  let cachedTree = await _cache.get(`tree:${repo}:${branch.branch}`);
+  let cachedTree = await _cache.get(`tree:${repo}:${branch.name}`);
   if (!cachedTree || cachedTree.sha !== branch.commit.commit.tree.sha) {
     // outdated or missing cache
     try {
@@ -258,7 +337,7 @@ export async function getRepoTree({ repo, branch, token, id_prefix }) {
       errorHandler(err);
     }
 
-    await _cache.set(`tree:${repo}:${branch.branch}`, cachedTree);
+    await _cache.set(`tree:${repo}:${branch.name}`, cachedTree);
   }
   return _buildTree(cachedTree.tree, '', id_prefix);
 }
@@ -274,7 +353,7 @@ export function getSubtree(tree, root) {
   return tree;
 }
 
-export async function getMergedTrees({ repositories, token, id_prefix }) {
+export async function getMergedTrees({ repositories, token, id_prefix, index }) {
   let tree = [];
   for (let repo of repositories) {
     let [_, owner, name, path, branch] = repo.match(/^([\w-]+)\/([\w-]+)((?:\/[\w-]+)*)(#.*)?$/);
@@ -290,5 +369,8 @@ export async function getMergedTrees({ repositories, token, id_prefix }) {
     }
     tree = _mergeTrees(tree, newTree);
   }
-  return tree;
+  if (index) {
+    tree = await indexTree({ tree, token });
+  }
+  return sortTree(pruneTree(tree));
 }

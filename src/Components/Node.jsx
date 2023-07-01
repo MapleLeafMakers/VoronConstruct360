@@ -41,15 +41,11 @@ function NodeIcon({ node }) {
   return node.isOpen ? <FaFolderOpen /> : <FaFolder />;
 }
 
-NodeIcon.propTypes = {
-  node: PropTypes.oneOfType(NodeApi).isRequired,
-};
 
-export default function Node({ node, tree, style, dragHandle }) {
+export default function Node({ node, tree, style }) {
   const [importEnabled, setImportEnabled] = useState(true);
   return (
     <div
-      ref={dragHandle}
       style={style}
       className={clsx(['node', 'row', node.state])}
       onClick={() => node.isInternal && node.toggle()}

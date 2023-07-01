@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import { React, useEffect, useRef, useState } from 'react';
+import { React, useRef, useState } from 'react';
 import { FaEdit, FaPlus, FaTrash, FaArrowUp, FaArrowDown } from 'react-icons/fa';
 import Row from './Row';
 import Panel from './Panel';
