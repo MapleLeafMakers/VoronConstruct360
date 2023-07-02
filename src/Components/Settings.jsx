@@ -58,7 +58,6 @@ export default function Settings({ onClose, apiKey, setApiKey }) {
           </Row>
         </Panel>
       </div>
-
     </div >
   );
 }
