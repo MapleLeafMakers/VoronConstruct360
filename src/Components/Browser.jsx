@@ -24,7 +24,7 @@ const cleanRepos = async (repos, token) => {
       return repoData.repr;
     } catch (err) {
       alert(err);
-      throw err;
+      return;
     }
   }));
   return repoList.filter(r => r !== null).join(',');
@@ -58,27 +58,28 @@ export default function Browser() {
   const [showCollectionEditor, setShowCollectionEditor] = useState(false);
   const [showModelUploader, setShowModelUploader] = useState(false);
   const [editingCollection, setEditingCollection] = useState(null);
-  const [loadingRepos, setLoadingRepos] = useState(false)
+  const [loadingMessage, setLoadingMessage] = useState('')
   const tree = useRef();
 
   const windowSize = useWindowSize();
 
   useEffect(() => {
-    setLoadingRepos(true);
+    setLoadingMessage("Loading Collections...");
     const fetchData = async () => {
+      await rpc.init();
       rpc.request('kv_mget', { keys: ['token', 'collections'] }).then(({ collections, token }) => {
         collections = collections || [];
         setApiKey(token || '');
         Promise.all(collections.map(async (c) => {
-          c.children = await getMergedTrees({ repositories: c.repositories, token: token, id_prefix: c.id, index: true });
+          c.children = await getMergedTrees({ repositories: c.repositories, token: token, id_prefix: c.id, index: true, setLoadingMessage });
           return c;
         })).then((result) => {
           setContents(result);
-          setLoadingRepos(false);
-        });
+          setLoadingMessage('');
+        })
       }).catch(err => {
         alert(err);
-        setLoadingRepos(false);
+        setLoadingMessage('');
       });
     }
     fetchData();
@@ -96,7 +97,7 @@ export default function Browser() {
       } else {
         newContents.push({
           ...r,
-          children: await getMergedTrees({ repositories: collection.repositories, token: apiKey, id_prefix: collection.id, index: true }),
+          children: await getMergedTrees({ repositories: collection.repositories, token: apiKey, id_prefix: collection.id, index: true, setLoadingMessage }),
         })
       }
     }
@@ -104,15 +105,28 @@ export default function Browser() {
   }
 
   const addRepo = async () => {
+
     const cleanedRepo = await cleanRepos(repo, apiKey);
+    if (!cleanedRepo) {
+      return;
+    }
     const _id = uuidv4();
+    setLoadingMessage("Loading...");
+    let children;
+    try {
+      children = await getMergedTrees({ repositories: cleanedRepo.split(','), token: apiKey, id_prefix: _id, index: true, setLoadingMessage });
+    } catch (err) {
+      console.log('alerting');
+      alert(err);
+    }
+    setLoadingMessage('');
     const newContents = [...contents, {
       id: _id,
       display_name: cleanedRepo,
       repositories: cleanedRepo.split(','),
       type: 'repo',
       name: cleanedRepo,
-      children: await getMergedTrees({ repositories: cleanedRepo.split(','), token: apiKey, id_prefix: _id, index: true }),
+      children: children
     }];
     setContents(newContents);
     setRepo('');
@@ -153,8 +167,13 @@ export default function Browser() {
           <button aria-label="Settings" type="button" style={{ marginLeft: '4px', paddingTop: '4px' }} className="btn" onClick={() => setShowSettings(true)}><FaCog /></button>
         </Row>
       </Panel>
-      {loadingRepos ?
-        <Panel style={{ flex: 1, display: 'flex', flexDirection: 'row', justifyContent: 'center' }}><SpinnerCircular /></Panel> :
+      {loadingMessage ?
+        <Panel style={{ flex: 1, display: 'flex', flexDirection: 'row', justifyContent: 'center' }}>
+          <div style={{ justifyContent: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <SpinnerCircular />
+            <div style={{ textAlign: 'center' }}>{loadingMessage}</div>
+          </div>
+        </Panel> :
         <Panel style={{ padding: '4px' }}>
           <div className="treeWrap">
             <Tree

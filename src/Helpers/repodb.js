@@ -45,7 +45,9 @@ export async function cleanRepoString({ input, token }) {
   }
 
   let repoData;
+
   repoData = await getRepository({ repo, token });
+
 
   let [path, branch] = input.split('#');
   if (branch) {
@@ -124,11 +126,7 @@ export async function uploadThumbnail({ repo, branch, path, data, token, sha }) 
 }
 
 export async function getRepository({ repo, token }) {
-  try {
-    return (await axios.get(`${BASE_URL}/repos/${repo}`, { headers: getHeaders(token) })).data;
-  } catch (err) {
-    errorHandler(err);
-  }
+  return (await axios.get(`${BASE_URL}/repos/${repo}`, { headers: getHeaders(token) })).data;
 }
 
 export async function downloadBlob({ url, token }) {
@@ -400,26 +398,32 @@ export function getSubtree(tree, root) {
   return tree;
 }
 
-export async function getMergedTrees({ repositories, token, id_prefix, index }) {
+export async function getMergedTrees({ repositories, token, id_prefix, index, setLoadingMessage }) {
   let tree = [];
   let treeShas = [];
 
   for (let repo of repositories) {
-    let [_, owner, name, path, branch] = repo.match(/^([\w-]+)\/([\w-]+)((?:\/[\w-]+)*)(#.*)?$/);
-    if (branch) {
-      branch = branch.substring(1);
-    } else {
-      const r = await getRepository({ repo: `${owner}/${name}`, token });
-      branch = r.default_branch;
+    setLoadingMessage(`Loading ${repo}...`);
+    const match = repo.match(/^([\w-]+)\/([\w-]+)((?:\/[\w-]+)*)(#.*)?$/);
+    if (match != null) {
+      let [_, owner, name, path, branch] = match;
+      if (branch) {
+        branch = branch.substring(1);
+      } else {
+        const r = await getRepository({ repo: `${owner}/${name}`, token });
+        branch = r.default_branch;
+      }
+      setLoadingMessage(`Loading ${repo}#${branch}...`);
+      let [newTree, newTreeSha] = await getRepoTree({ repo: `${owner}/${name}`, branch, token, id_prefix });
+      treeShas.push(newTreeSha);
+      if (path) {
+        newTree = getSubtree(newTree, path);
+      }
+      tree = _mergeTrees(tree, newTree);
     }
-    let [newTree, newTreeSha] = await getRepoTree({ repo: `${owner}/${name}`, branch, token, id_prefix });
-    treeShas.push(newTreeSha);
-    if (path) {
-      newTree = getSubtree(newTree, path);
-    }
-    tree = _mergeTrees(tree, newTree);
   }
   if (index) {
+    setLoadingMessage("Indexing tree...");
     tree = await indexTree({ tree, token, treeShas });
   }
   return sortTree(pruneTree(tree))
