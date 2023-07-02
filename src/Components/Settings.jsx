@@ -39,7 +39,7 @@ export default function Settings({ onClose, apiKey, setApiKey }) {
             />
           </Row>
           <Row>
-            <button type="button" onClick={cacheBust}>Reload</button>
+            <button type="button" class="btn btn-sm" onClick={cacheBust}>Force Reload</button>
           </Row>
         </Panel>
         <Panel style={{ flex: 1 }} />
