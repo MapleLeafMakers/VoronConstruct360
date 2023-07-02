@@ -341,7 +341,6 @@ export function _buildTree(tree, root, id_prefix = '') {
     node.id = `${id_prefix}|${node.path}`;
     node.name = node.path.split('/').pop();
     node.name = node.name.match(/^(.*?)(\.[^\.]*)?$/)[1];
-    delete node.sha;
     delete node.mode;
     if (node.type == 'tree') {
       node.children = _buildTree(tree, `${node.path}/`, id_prefix);

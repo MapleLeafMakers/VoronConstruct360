@@ -34,6 +34,7 @@ export default function Preview({ file, onClickImage, token }) {
       setDataUrl(null);
     }
   }, [file]);
+
   if (file) {
     return (
       <Panel>
@@ -55,7 +56,7 @@ export default function Preview({ file, onClickImage, token }) {
               const repo = repoFromUrl(file.content_types[ct].url);
               return (<div>
                 <span style={{ fontWeight: 'bold' }}>{ct}: </span>
-                <span>{sizeOf(file.content_types[ct].size)} [<a href={`https://github.com/${repo}`} > <FaGithub style={{ verticalAlign: 'top' }} /> {repo}]</a></span>
+                <span>{sizeOf(file.content_types[ct].size)} [<a href={`https://github.com/${repo}`} > <FaGithub style={{ verticalAlign: 'top' }} /> {repo}</a>]</span>
               </div>)
             })}
           </div>

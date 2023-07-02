@@ -28,7 +28,6 @@ const fusionRpc = {
 
 const noRpc = {
   request: async (method, params, clientParams) => {
-    console.log('>', method, params);
     if (method === "kv_set") {
       localStorage.setItem(params.key, JSON.stringify(params.value));
     } else if (method === "kv_get") {
