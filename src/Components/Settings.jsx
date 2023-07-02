@@ -7,20 +7,6 @@ import rpc from '../Helpers/rpc';
 import axios from 'axios';
 export default function Settings({ onClose, apiKey, setApiKey }) {
   const [token, setToken] = useState(apiKey);
-  const [interfaceUrl, setInterfaceUrl] = useState(window.location);
-
-  const cacheBust = async () => {
-    const headers = {
-      "Pragma": "no-cache",
-      "Expires": -1,
-      "Cache-Control": "no-cache"
-    };
-
-    await axios.get("./main.js", { headers });
-    await axios.get("./base.css", { headers });
-    window.location.reload();
-  };
-
 
   return (
     <div style={{ zIndex: 99999, background: 'rgba(0,0,0,0.5)', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
@@ -37,9 +23,6 @@ export default function Settings({ onClose, apiKey, setApiKey }) {
                 setToken(e.target.value);
               }}
             />
-          </Row>
-          <Row>
-            <button type="button" class="btn btn-sm" onClick={cacheBust}>Force Reload</button>
           </Row>
         </Panel>
         <Panel style={{ flex: 1 }} />
