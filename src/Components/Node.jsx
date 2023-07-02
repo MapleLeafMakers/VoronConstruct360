@@ -138,9 +138,9 @@ export default function Node({ node, tree, style }) {
   );
 }
 Node.propTypes = {
-  node: PropTypes.oneOfType(NodeApi).isRequired,
+  node: PropTypes.object.isRequired,
   style: stylePropType,
-  dragHandle: PropTypes.node.isRequired,
+  dragHandle: PropTypes.func.isRequired,
 };
 
 Node.defaultProps = {

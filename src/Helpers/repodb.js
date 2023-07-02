@@ -187,7 +187,6 @@ export function _mergeNodes(n1, n2) {
 }
 
 export function _mergeTrees(t1, t2) {
-  console.log("merging", t1, t2);
   const results = [...t1];
   t2.forEach(node => {
     let match = t1.filter(n => n.name == node.name && n.type == node.type)[0];
@@ -196,18 +195,14 @@ export function _mergeTrees(t1, t2) {
       return;
     }
     if (match.type === 'tree') {
-      console.log("Merge child trees", match.children, node.children)
       match.children = _mergeTrees(match.children, node.children);
     } else {
-      console.log("Merging nodes", match, node);
-
       results.splice(results.indexOf(match), 1);
       match = _mergeNodes(match, node);
 
       results.push(match);
     }
   });
-  console.log("Merged result", results);
   return results;
 }
 
@@ -235,14 +230,20 @@ export function sortTree(tree) {
   return tree;
 }
 
-export function _getChildNodeByPath(tree, path, currentDir) {
-  console.log("gcnbp", tree, path, currentDir);
-  for (const p of path.split('/')) {
-    tree = tree.filter(n => n.name === p)[0];
-    if (!tree) return null;
+export function _getChildNodeByPath(tree, path) {
+  if (path) {
+    for (const p of path.split('/')) {
+      if (Array.isArray(tree)) {
+        tree = tree.filter(n => n.name === p)[0];
+      } else {
+        tree = tree.children.filter(n => n.name === p)[0];
+      }
+      if (!tree) return null;
+    }
   }
   return tree;
 }
+
 export function _mergeKeywords(kw1, kw2) {
   kw1 = kw1 || [];
   kw2 = kw2 || [];
@@ -254,16 +255,51 @@ export function _mergeKeywords(kw1, kw2) {
   return [...kw1, ...kw2.filter(kw => kw1Lower.indexOf(kw.toLowerCase()) === -1)].join(' ');
 }
 
-export async function indexTree({ tree, token }) {
-  console.log("Indexing Tree", JSON.parse(JSON.stringify(tree)))
-  const results = [];
+export function applyMeta(tree, dirMeta) {
+  console.log("Applying DirMeta", tree, dirMeta);
+  // modifies objects in place
+  for (const [path, meta] of Object.entries(dirMeta)) {
+    const node = _getChildNodeByPath(tree, path);
+    node.meta = {
+      ...node?.meta || {}, ...meta || {}, keywords: _mergeKeywords(node?.meta?.keywords, meta?.keywords)
+    }
+  }
+}
+
+export function buildMetaCache(tree, meta, prefix) {
+  meta = meta || {};
+  prefix = prefix || '';
+  for (const node of tree) {
+    if (node.type === 'tree') {
+      buildMetaCache(node.children, meta, prefix + `${node.name}/`);
+    } else if (node.type === 'blob' && node.meta && Object.keys(node.meta).length) {
+      meta[`${prefix}${node.name}`] = node.meta;
+    }
+  }
+  return meta;
+}
+
+export async function indexTree({ tree, token, treeShas, hasCache }) {
+  let cachedMeta;
+
+  // treeShas is only passed in on the root
+  if (treeShas) {
+    cachedMeta = await _cache.get(`metacache:${treeShas.join(":")}`, null)
+    hasCache = cachedMeta !== null;
+  }
+
+  let results = [];
   for (let n of tree) {
     if (n.type === 'tree') {
-      results.push({ ...n, children: await indexTree({ tree: n.children, token }) })
+      results.push({ ...n, children: await indexTree({ tree: n.children, token, hasCache }) })
       continue;
     }
     if (n.content_types.meta) {
-      results.push({ ...n, meta: await downloadBlobJson({ url: n.content_types.meta.url, token }) });
+      let meta = {};
+      if (!hasCache) {
+        meta = await downloadBlobJson({ url: n.content_types.meta.url, token });
+      }
+      results.push({ ...n, meta });
       continue;
     }
     results.push({ ...n });
@@ -271,16 +307,22 @@ export async function indexTree({ tree, token }) {
 
   const metaFile = results.filter(n => n.name == '_meta' && n?.content_types?.meta)[0];
   if (metaFile) {
-    console.log("found metaFile", metaFile);
-    const dirMeta = await downloadBlobJson({ url: metaFile.content_types.meta.url, token });
-    const currentDir = metaFile.path.split('/').slice(0, -1).join('/') + '/';
-    for (const [path, meta] of Object.entries(dirMeta)) {
-      const node = _getChildNodeByPath(results, path, currentDir);
-      node.meta = {
-        ...node?.meta, ...meta, keywords: _mergeKeywords(node?.meta?.keywords, meta?.keywords)
-      }
+    if (!hasCache) {
+      console.log("Downloading meta", metaFile.content_types.meta.url);
+      const dirMeta = await downloadBlobJson({ url: metaFile.content_types.meta.url, token });
+      console.log("got", dirMeta);
+      applyMeta(results, dirMeta);
     }
-    return results.filter(n => n.id !== metaFile.id);
+    results = results.filter(n => n.id !== metaFile.id);
+  }
+
+  if (treeShas) {
+    if (hasCache) {
+      applyMeta(results, cachedMeta);
+    } else {
+      cachedMeta = buildMetaCache(results);
+      await _cache.set(`metacache:${treeShas.join(":")}`, cachedMeta);
+    }
   }
   return results;
 }
@@ -339,7 +381,7 @@ export async function getRepoTree({ repo, branch, token, id_prefix }) {
 
     await _cache.set(`tree:${repo}:${branch.name}`, cachedTree);
   }
-  return _buildTree(cachedTree.tree, '', id_prefix);
+  return [_buildTree(cachedTree.tree, '', id_prefix), branch.commit.commit.tree.sha];
 }
 
 export function getSubtree(tree, root) {
@@ -355,6 +397,8 @@ export function getSubtree(tree, root) {
 
 export async function getMergedTrees({ repositories, token, id_prefix, index }) {
   let tree = [];
+  let treeShas = [];
+
   for (let repo of repositories) {
     let [_, owner, name, path, branch] = repo.match(/^([\w-]+)\/([\w-]+)((?:\/[\w-]+)*)(#.*)?$/);
     if (branch) {
@@ -363,14 +407,15 @@ export async function getMergedTrees({ repositories, token, id_prefix, index }) 
       const r = await getRepository({ repo: `${owner}/${name}`, token });
       branch = r.default_branch;
     }
-    let newTree = await getRepoTree({ repo: `${owner}/${name}`, branch, token, id_prefix });
+    let [newTree, newTreeSha] = await getRepoTree({ repo: `${owner}/${name}`, branch, token, id_prefix });
+    treeShas.push(newTreeSha);
     if (path) {
       newTree = getSubtree(newTree, path);
     }
     tree = _mergeTrees(tree, newTree);
   }
   if (index) {
-    tree = await indexTree({ tree, token });
+    tree = await indexTree({ tree, token, treeShas });
   }
-  return sortTree(pruneTree(tree));
+  return sortTree(pruneTree(tree))
 }

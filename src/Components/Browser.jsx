@@ -74,8 +74,10 @@ export default function Browser() {
           return c;
         })).then((result) => {
           setContents(result);
+          setLoadingRepos(false);
         });
-      }).catch(err => alert(err)).finally(() => {
+      }).catch(err => {
+        alert(err);
         setLoadingRepos(false);
       });
     }

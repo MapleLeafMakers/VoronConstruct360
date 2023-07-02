@@ -4,10 +4,10 @@ import { React, useState } from 'react';
 import Row from './Row';
 import Panel from './Panel';
 import rpc from '../Helpers/rpc';
-import axios from 'axios';
 export default function Settings({ onClose, apiKey, setApiKey }) {
+  const defaultValue = 'https://mapleleafmakers.github.io/VoronConstruct360/';
   const [token, setToken] = useState(apiKey);
-
+  const [urlOverride, setUrlOverride] = useState(window.location === defaultValue ? '' : window.location);
   return (
     <div style={{ zIndex: 99999, background: 'rgba(0,0,0,0.5)', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
       <div className="panel" style={{ zIndex: 99999, minWidth: 200, maxWidth: 400, margin: 'auto' }}>
@@ -24,6 +24,10 @@ export default function Settings({ onClose, apiKey, setApiKey }) {
               }}
             />
           </Row>
+          <Row>
+            <label placeholder={defaultValue} htmlFor="url-override-input">Interface URL Override </label>
+            <input id="url-override-input" className="input" value={urlOverride} onChange={(e) => setUrlOverride(e.target.value)} />
+          </Row>
         </Panel>
         <Panel style={{ flex: 1 }} />
         <Panel>
@@ -34,9 +38,11 @@ export default function Settings({ onClose, apiKey, setApiKey }) {
               setApiKey(token);
               rpc.request('kv_set', { key: 'token', value: token });
               onClose();
-              setTimeout(() => {
-                window.location = interfaceUrl;
-              }, 100);
+              if (urlOverride) {
+                setTimeout(() => {
+                  window.location = urlOverride;
+                }, 100);
+              }
             }}>OK</button>
           </Row>
         </Panel>
