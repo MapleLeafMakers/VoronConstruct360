@@ -4,7 +4,7 @@ import { React, useState } from 'react';
 import Row from './Row';
 import Panel from './Panel';
 import rpc from '../Helpers/rpc';
-
+import axios from 'axios';
 export default function Settings({ onClose, apiKey, setApiKey }) {
   const [token, setToken] = useState(apiKey);
   const [interfaceUrl, setInterfaceUrl] = useState(window.location);
