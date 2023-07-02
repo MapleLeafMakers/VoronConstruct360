@@ -160,7 +160,7 @@ export default function Browser() {
             <Tree
               ref={tree}
               width="100%"
-              height={windowSize.height - (64 + (selectedFile ? 200 : 0))}
+              height={windowSize.height - (66 + (selectedFile ? 200 : 0))}
               searchTerm={searchString}
               searchMatch={searchFilter}
               rowHeight={24}
