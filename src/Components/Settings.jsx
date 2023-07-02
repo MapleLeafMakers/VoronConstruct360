@@ -16,8 +16,8 @@ export default function Settings({ onClose, apiKey, setApiKey }) {
       "Cache-Control": "no-cache"
     };
 
-    await axios.get("/main.js", { headers });
-    await axios.get("/base.css", { headers });
+    await axios.get("./main.js", { headers });
+    await axios.get("./base.css", { headers });
     window.location.reload();
   };
 
