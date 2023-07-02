@@ -1,7 +1,7 @@
 import PropTypes from 'prop-types';
 import { React, useEffect, useState } from 'react';
 import { FaCube, FaCamera } from 'react-icons/fa';
-import { blobUrlToDataUrl, uploadThumbnail } from '../Helpers/repodb';
+import { downloadBlobImageAsDataUri, uploadThumbnail } from '../Helpers/repodb';
 import rpc from '../Helpers/rpc';
 import Row from './Row';
 import Panel from './Panel';
@@ -16,7 +16,7 @@ export default function Thumbnailer({ file, onClose, token, collection }) {
 
   useEffect(() => {
     if (file?.content_types?.thumb) {
-      blobUrlToDataUrl({ blobUrl: file.content_types.thumb.url, token: token }).then(result => {
+      downloadBlobImageAsDataUri({ url: file.content_types.thumb.url, token: token }).then(result => {
         setDataUrl(result);
       });
     } else {

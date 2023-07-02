@@ -2,7 +2,7 @@ import { useState, useEffect, React } from 'react';
 import { FaCube, FaGithub } from 'react-icons/fa';
 import Panel from './Panel';
 import Row from './Row';
-import { blobUrlToDataUrl } from '../Helpers/repodb';
+import { downloadBlobImageAsDataUri } from '../Helpers/repodb';
 
 const sizeOf = (bytes) => {
   if (bytes == 0) { return "0.00 B"; }
@@ -25,7 +25,7 @@ export default function Preview({ file, onClickImage, token }) {
 
   useEffect(() => {
     if (!file?.meta?.thumb && file?.content_types?.thumb) {
-      blobUrlToDataUrl({ blobUrl: file.content_types.thumb.url, token: token }).then(result => {
+      downloadBlobImageAsDataUri({ url: file.content_types.thumb.url, token: token }).then(result => {
         setDataUrl(result);
       });
     } else if (file?.meta?.thumb) {
@@ -50,15 +50,14 @@ export default function Preview({ file, onClickImage, token }) {
               <span style={{ fontWeight: 'bold' }}>Keywords: </span>
               <span>{file.meta.keywords}</span>
             </div>}
-            <hr />
+
             {Object.keys(file.content_types).filter(k => k != 'thumb' && k != 'meta').map(ct => {
               const repo = repoFromUrl(file.content_types[ct].url);
               return (<div>
                 <span style={{ fontWeight: 'bold' }}>{ct}: </span>
-                <span>{sizeOf(file.content_types[ct].size)} [<FaGithub style={{ verticalAlign: 'top' }} /> {repo}]</span>
+                <span>{sizeOf(file.content_types[ct].size)} [<a href={`https://github.com/${repo}`} > <FaGithub style={{ verticalAlign: 'top' }} /> {repo}]</a></span>
               </div>)
             })}
-
           </div>
         </Row>
       </Panel>

@@ -83,6 +83,11 @@ html {
     flex-direction: row;
 }
 
+a {
+    color: rgb(102, 102, 102);
+    text-decoration: none;
+}
+
 .input {
     flex: 1;
     border-color: rgb(204, 204, 204);

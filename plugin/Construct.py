@@ -188,7 +188,10 @@ if has_adsk:
                 # Create and display the palette.
                 palette = _ui.palettes.itemById('voronConstruct')
                 if not palette:
-                    palette = _ui.palettes.add('voronConstruct', 'Voron Construct, CAD...Lots of CAD', 'https://mapleleafmakers.github.io/VoronConstruct360/', True, True, True, 700, 200, True)
+                    palette = _ui.palettes.add('voronConstruct', 'Voron Construct, CAD...Lots of CAD',
+                                               'https://mapleleafmakers.github.io/VoronConstruct360/',
+                                               # "http://localhost:8080/",
+                                               True, True, True, 700, 200, True)
 
                     # Dock the palette to the right side of Fusion window.
                     palette.dockingState = adsk.core.PaletteDockingStates.PaletteDockStateRight
@@ -197,6 +200,11 @@ if has_adsk:
                     onHTMLEvent = MyHTMLEventHandler()
                     palette.incomingFromHTML.add(onHTMLEvent)
                     handlers.append(onHTMLEvent)
+
+                    onNavigatingURL = MyNavigatingURLHandler()
+                    palette.navigatingURL.add(onNavigatingURL)
+                    handlers.append(onNavigatingURL)
+
 
                     # Add handler to CloseEvent of the palette.
                 else:
@@ -237,7 +245,6 @@ if has_adsk:
             except:
                 _ui.messageBox('Command executed failed: {}'.format(traceback.format_exc()))
 
-
     # Event handler for the palette HTML event.
     class MyHTMLEventHandler(adsk.core.HTMLEventHandler):
         def __init__(self):
@@ -253,6 +260,14 @@ if has_adsk:
             except:
                 _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
+
+    class MyNavigatingURLHandler(adsk.core.NavigationEventHandler):
+        def __init__(self):
+            super().__init__()
+        def notify(self, args: adsk.core.NavigationEventArgs):
+            navArgs = adsk.core.NavigationEventArgs.cast(args)
+            # Code to react to the event.
+            navArgs.launchExternally = True
 
     def run(context):
         try:

@@ -25,8 +25,8 @@ export default function Settings({ onClose, apiKey, setApiKey }) {
             />
           </Row>
           <Row>
-            <label placeholder={defaultValue} htmlFor="url-override-input">Interface URL Override </label>
-            <input id="url-override-input" className="input" value={urlOverride} onChange={(e) => setUrlOverride(e.target.value)} />
+            <label htmlFor="url-override-input">App URL </label>
+            <input id="url-override-input" placeholder={defaultValue} className="input" value={urlOverride} onChange={(e) => setUrlOverride(e.target.value)} />
           </Row>
         </Panel>
         <Panel style={{ flex: 1 }} />
@@ -38,11 +38,11 @@ export default function Settings({ onClose, apiKey, setApiKey }) {
               setApiKey(token);
               rpc.request('kv_set', { key: 'token', value: token });
               onClose();
-              if (urlOverride) {
-                setTimeout(() => {
-                  window.location = urlOverride;
-                }, 100);
-              }
+
+              setTimeout(() => {
+                window.location = urlOverride || defaultValue;
+              }, 100);
+
             }}>OK</button>
           </Row>
         </Panel>

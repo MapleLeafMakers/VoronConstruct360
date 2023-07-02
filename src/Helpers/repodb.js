@@ -131,23 +131,28 @@ export async function getRepository({ repo, token }) {
   }
 }
 
+export async function downloadBlob({ url, token }) {
+  let cached = await _cache.get(`blobcache:${url}`, null);
+  if (cached === null) {
+    const response = await axios.get(url, { headers: getHeaders(token) });
+    cached = response.data;
+    await _cache.set(`blobcache:${url}`, cached);
+  }
+  return cached;
+}
+
 export async function downloadBlobJson({ url, token }) {
-  const response = await axios.get(url, { headers: getHeaders(token) });
-  let content = response.data.content;
-  if (response.data.encoding === 'base64') {
+  const blob = await downloadBlob({ url, token });
+  let content = blob.content;
+  if (blob.encoding === 'base64') {
     content = atob(content);
   }
   return JSON.parse(content);
 }
 
-export async function blobUrlToDataUrl({ blobUrl, token }) {
-  let cached = await _cache.get(`thumb:${blobUrl}`, null);
-  if (cached === null) {
-    const response = await axios.get(blobUrl, { headers: getHeaders(token) });
-    cached = `data:image/png;base64,${response.data.content}`;
-    await _cache.set(`thumb:${blobUrl}`, cached);
-  }
-  return cached;
+export async function downloadBlobImageAsDataUri({ url, token }) {
+  const blob = await downloadBlob({ url, token });
+  return `data:image/png;base64,${blob.content}`;
 }
 
 export async function getBranch({ repo, branch, token }) {
