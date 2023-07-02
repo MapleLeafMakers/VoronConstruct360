@@ -190,7 +190,6 @@ if has_adsk:
                 if not palette:
                     palette = _ui.palettes.add('voronConstruct', 'Voron Construct, CAD...Lots of CAD',
                                                'https://mapleleafmakers.github.io/VoronConstruct360/',
-                                               # "http://localhost:8080/",
                                                True, True, True, 700, 200, True)
 
                     # Dock the palette to the right side of Fusion window.
