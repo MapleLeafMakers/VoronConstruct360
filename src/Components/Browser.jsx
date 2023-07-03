@@ -30,7 +30,11 @@ const cleanRepos = async (repos, token) => {
   return repoList.filter(r => r !== null).join(',');
 };
 
+
 setCache({
+  async clear() {
+    return await rpc.request("kv_mdel", { pattern: 'cache:%' });
+  },
   async get(key, defaultValue) {
     let value = await rpc.request("kv_get", { key });
     if (value === null) {
@@ -90,6 +94,10 @@ export default function Browser() {
   };
 
   const reloadCollection = async (collection) => {
+
+    setSelectedFile(null);
+    setSelectedFolder(null);
+
     const newContents = [];
     for (let r of contents) {
       if (r.id != collection.id) {
@@ -101,11 +109,11 @@ export default function Browser() {
         })
       }
     }
+    setLoadingMessage('');
     setContents(newContents);
   }
 
   const addRepo = async () => {
-
     const cleanedRepo = await cleanRepos(repo, apiKey);
     if (!cleanedRepo) {
       return;
@@ -245,14 +253,24 @@ export default function Browser() {
       {
         showThumbnailer && <Thumbnailer
           token={apiKey}
+          updateCollection={collection => {
+            const results = [];
+            for (let c of contents) {
+              if (c.id === collection.id) {
+                results.push({ ...collection });
+              } else {
+                results.push(c);
+              }
+            }
+            updateRepoList(results);
+          }}
           collection={contents.filter(r => r.id === selectedRoot)[0]}
           file={selectedFile}
           onClose={
             (updated) => {
               setShowThumbnailer(false);
               if (updated) {
-                const repoId = selectedFile.id.split('|')[0];
-                reloadCollection(repoId);
+                reloadCollection(contents.filter(r => r.id == selectedRoot)[0]);
               }
             }
           } />

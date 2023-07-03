@@ -5,6 +5,9 @@ export const BASE_URL = 'https://api.github.com'
 // stupid cache for now
 let _cache = {
   data: {},
+  async clear() {
+    this.data = {};
+  },
   async get(key, defaultValue) {
     return this.data[key] === undefined ? defaultValue : JSON.parse(this.data[key]);
   },
@@ -15,6 +18,10 @@ let _cache = {
 
 export function setCache(cache) {
   _cache = cache;
+}
+
+export function getCache() {
+  return _cache;
 }
 
 const getHeaders = (token, headers = null) => {
@@ -130,11 +137,11 @@ export async function getRepository({ repo, token }) {
 }
 
 export async function downloadBlob({ url, token }) {
-  let cached = await _cache.get(`blobcache:${url}`, null);
+  let cached = await _cache.get(`cache:blob:${url}`, null);
   if (cached === null) {
     const response = await axios.get(url, { headers: getHeaders(token) });
     cached = response.data;
-    await _cache.set(`blobcache:${url}`, cached);
+    await _cache.set(`cache:blob:${url}`, cached);
   }
   return cached;
 }
@@ -159,7 +166,9 @@ export async function getBranch({ repo, branch, token }) {
     branch = repoInfo.default_branch;
   }
   try {
-    return (await axios.get(`${BASE_URL}/repos/${repo}/branches/${branch}`, { headers: getHeaders(token) })).data;
+    const now = new Date();
+    now.setSeconds(now.getSeconds() - 30);
+    return (await axios.get(`${BASE_URL}/repos/${repo}/branches/${branch}`, { headers: getHeaders(token, { 'If-Modified-Since': now.toUTCString() }) })).data;
   } catch (err) {
     errorHandler(err);
   }
@@ -197,12 +206,12 @@ export function _mergeTrees(t1, t2) {
       results.push(node);
       return;
     }
+    match.sha = [...match.sha, ...node.sha];
     if (match.type === 'tree') {
       match.children = _mergeTrees(match.children, node.children);
     } else {
       results.splice(results.indexOf(match), 1);
       match = _mergeNodes(match, node);
-
       results.push(match);
     }
   });
@@ -255,7 +264,7 @@ export function _mergeKeywords(kw1, kw2) {
   kw2 = Array.isArray(kw2) ? kw2 : kw2.split(/\s+/);
   const kw1Lower = kw1.map((kw) => kw.toLowerCase());
 
-  return [...kw1, ...kw2.filter(kw => kw1Lower.indexOf(kw.toLowerCase()) === -1)].join(' ');
+  return [...kw1, ...kw2.filter(kw => kw1Lower.indexOf(kw.toLowerCase()) === -1)].join(' ') || undefined;
 }
 
 export function applyMeta(tree, dirMeta) {
@@ -269,63 +278,46 @@ export function applyMeta(tree, dirMeta) {
   }
 }
 
-export function buildMetaCache(tree, meta, prefix) {
-  meta = meta || {};
-  prefix = prefix || '';
-  for (const node of tree) {
-    if (node.type === 'tree') {
-      buildMetaCache(node.children, meta, prefix + `${node.name}/`);
-    } else if (node.type === 'blob' && node.meta && Object.keys(node.meta).length) {
-      meta[`${prefix}${node.name}`] = node.meta;
-    }
-  }
-  return meta;
-}
-
-export async function indexTree({ tree, token, treeShas, hasCache }) {
-  let cachedMeta;
-
-  // treeShas is only passed in on the root
-  if (treeShas) {
-    cachedMeta = await _cache.get(`metacache:${treeShas.join(":")}`, null)
-    hasCache = cachedMeta !== null;
-  }
+export async function indexTree({ tree, token, treeShas, perNodeFunc }) {
+  let cachedDirMeta = await _cache.get(`cache:meta:${treeShas.join(':')}`, null);
 
   let results = [];
   for (let n of tree) {
+    perNodeFunc(n);
     if (n.type === 'tree') {
-      results.push({ ...n, children: await indexTree({ tree: n.children, token, hasCache }) })
+      results.push({ ...n, children: await indexTree({ tree: n.children, token, treeShas: n.sha, perNodeFunc }) })
       continue;
     }
-    if (n.content_types.meta) {
-      let meta = {};
-      if (!hasCache) {
-        meta = await downloadBlobJson({ url: n.content_types.meta.url, token });
-      }
-      results.push({ ...n, meta });
-      continue;
+    let meta;
+    if (cachedDirMeta) {
+      meta = cachedDirMeta[n.name] || {};
+    } else if (n.content_types.meta) {
+      meta = await downloadBlobJson({ url: n.content_types.meta.url, token });
     }
-    results.push({ ...n });
+    results.push({ ...n, meta });
   }
 
   const metaFile = results.filter(n => n.name == '_meta' && n?.content_types?.meta)[0];
   if (metaFile) {
-    if (!hasCache) {
+    if (!cachedDirMeta) {
       console.log("Downloading meta", metaFile.content_types.meta.url);
       const dirMeta = await downloadBlobJson({ url: metaFile.content_types.meta.url, token });
-      console.log("got", dirMeta);
       applyMeta(results, dirMeta);
     }
     results = results.filter(n => n.id !== metaFile.id);
   }
 
-  if (treeShas) {
-    if (hasCache) {
-      applyMeta(results, cachedMeta);
-    } else {
-      cachedMeta = buildMetaCache(results);
-      await _cache.set(`metacache:${treeShas.join(":")}`, cachedMeta);
+  if (!cachedDirMeta) {
+    const cache = {};
+    results.forEach(n => {
+      if (Object.keys(n?.meta || {}).length != 0) {
+        cache[n.name] = n.meta;
+      }
+    });
+    if (Object.keys(cache).length != 0) {
+      _cache.set(`cache:meta:${treeShas.join(':')}`, cache);
     }
+
   }
   return results;
 }
@@ -342,6 +334,7 @@ export function _buildTree(tree, root, id_prefix = '') {
     node.name = node.path.split('/').pop();
     node.name = node.name.match(/^(.*?)(\.[^\.]*)?$/)[1];
     delete node.mode;
+    node.sha = Array.isArray(node.sha) ? node.sha : [node.sha];
     if (node.type == 'tree') {
       node.children = _buildTree(tree, `${node.path}/`, id_prefix);
       if (node.children.length === 0) {
@@ -370,18 +363,21 @@ export function _buildTree(tree, root, id_prefix = '') {
   return results;
 }
 
-export async function getRepoTree({ repo, branch, token, id_prefix }) {
+export async function getRepoTree({ repo, branch, token, id_prefix, noCache }) {
+  noCache = !!noCache;
   branch = await getBranch({ repo, branch, token });
-  let cachedTree = await _cache.get(`tree:${repo}:${branch.name}`);
+  let cachedTree = noCache ? null : await _cache.get(`cache:tree:${repo}:${branch.name}`);
   if (!cachedTree || cachedTree.sha !== branch.commit.commit.tree.sha) {
     // outdated or missing cache
+    console.log('cache miss', repo, branch.commit.commit);
     try {
       cachedTree = (await axios.get(`${BASE_URL}/repos/${repo}/git/trees/${branch.commit.commit.tree.sha}?recursive=1`, { headers: getHeaders(token) })).data;
     } catch (err) {
       errorHandler(err);
     }
-
-    await _cache.set(`tree:${repo}:${branch.name}`, cachedTree);
+    if (!noCache) {
+      await _cache.set(`cache:tree:${repo}:${branch.name}`, cachedTree);
+    }
   }
   return [_buildTree(cachedTree.tree, '', id_prefix), branch.commit.commit.tree.sha];
 }
@@ -397,12 +393,32 @@ export function getSubtree(tree, root) {
   return tree;
 }
 
-export async function getMergedTrees({ repositories, token, id_prefix, index, setLoadingMessage }) {
+export function countNodes(tree) {
+  let count = 0;
+
+  function traverse(node) {
+    count++;
+    if (node.children) {
+      for (let child of node.children) {
+        traverse(child);
+      }
+    }
+  }
+
+  for (let node of tree) {
+    traverse(node);
+  }
+
+  return count;
+}
+
+export async function getMergedTrees({ repositories, token, id_prefix, index, setLoadingMessage, noCache }) {
+  noCache = !!noCache;
   let tree = [];
   let treeShas = [];
 
   for (let repo of repositories) {
-    setLoadingMessage(`Loading ${repo}...`);
+    setLoadingMessage && setLoadingMessage(`Loading ${repo}...`);
     const match = repo.match(/^([\w-]+)\/([\w-]+)((?:\/[\w-]+)*)(#.*)?$/);
     if (match != null) {
       let [_, owner, name, path, branch] = match;
@@ -412,8 +428,8 @@ export async function getMergedTrees({ repositories, token, id_prefix, index, se
         const r = await getRepository({ repo: `${owner}/${name}`, token });
         branch = r.default_branch;
       }
-      setLoadingMessage(`Loading ${repo}#${branch}...`);
-      let [newTree, newTreeSha] = await getRepoTree({ repo: `${owner}/${name}`, branch, token, id_prefix });
+      setLoadingMessage && setLoadingMessage(`Loading ${repo}#${branch}...`);
+      let [newTree, newTreeSha] = await getRepoTree({ repo: `${owner}/${name}`, branch, token, id_prefix, noCache });
       treeShas.push(newTreeSha);
       if (path) {
         newTree = getSubtree(newTree, path);
@@ -421,9 +437,17 @@ export async function getMergedTrees({ repositories, token, id_prefix, index, se
       tree = _mergeTrees(tree, newTree);
     }
   }
+
   if (index) {
-    setLoadingMessage("Indexing tree...");
-    tree = await indexTree({ tree, token, treeShas });
+    let progress = 0;
+    const total = countNodes(tree);
+    const perNodeFunc = () => {
+      progress++;
+      setLoadingMessage && setLoadingMessage(`Indexing trees (${progress}/${total})...`);
+    };
+
+    tree = await indexTree({ tree, token, treeShas, perNodeFunc });
   }
+  console.log("Merged trees", tree);
   return sortTree(pruneTree(tree))
 }

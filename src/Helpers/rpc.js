@@ -26,7 +26,11 @@ const fusionRpc = {
   }
 }
 
+
 const noRpc = {
+  escapeRegExp: (string) => {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  },
   request: async (method, params, clientParams) => {
     if (method === "kv_set") {
       localStorage.setItem(params.key, JSON.stringify(params.value));
@@ -38,6 +42,34 @@ const noRpc = {
       }
     } else if (method === "kv_mget") {
       return Object.fromEntries(params.keys.map(k => [k, JSON.parse(localStorage.getItem(k))]));
+    } else if (method === "kv_del") {
+      localStorage.removeItem(params.key);
+    } else if (method == "kv_mdel") {
+      if (params.keys) {
+        params.keys.map(localStorage.removeItem);
+      }
+      if (params.pattern) {
+        const pat = new RegExp(`^${params.pattern.split('%').map(this.escapeRegExp).join('.*')}$`);
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key.match(pat)) {
+            localStorage.removeItem(key);
+          }
+        }
+      }
+    } else if (method === "kv_keys") {
+      const results = [];
+      let pat = /^.*$/;
+      if (params.pattern) {
+        pat = new RegExp(`^${params.pattern.split('%').map(this.escapeRegExp).join('.*')}$`);
+      }
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key.match(pat)) {
+          results.push(key);
+        }
+      }
+      return results;
     }
   }
 }

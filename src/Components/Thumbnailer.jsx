@@ -7,12 +7,12 @@ import Row from './Row';
 import Panel from './Panel';
 
 
-export default function Thumbnailer({ file, onClose, token, collection }) {
+export default function Thumbnailer({ file, onClose, token, collection, updateCollection }) {
   const [dataUrl, setDataUrl] = useState(null);
   const [hasScreenshot, setHasScreenshot] = useState(false);
-  console.log(collection);
+
   const allRepos = [...collection.repositories];
-  const [selectedRepo, setSelectedRepo] = useState(allRepos[0]);
+  const [selectedRepo, setSelectedRepo] = useState(collection?.uploadTo || allRepos[0]);
 
   useEffect(() => {
     if (file?.content_types?.thumb) {
@@ -38,13 +38,13 @@ export default function Thumbnailer({ file, onClose, token, collection }) {
         </Panel>
         {hasScreenshot && <Row>
           <label>Upload to </label>
-          <select className='input' onChange={(e) => {
+          <select className='input' value={selectedRepo} onChange={(e) => {
             setSelectedRepo(e.target.value);
           }}>
-            {allRepos.map((r) => <option selected={selectedRepo == r} value={r}>{r}</option>)}
+            {allRepos.map((r) => <option key={r} value={r}>{r}</option>)}
           </select>
         </Row>}
-        <Panel style={{ flex: 1 }} />
+        <Panel style={{ flex: 1 }}><></></Panel>
         <Panel>
           <Row style={{ padding: '8px 12px' }}>
             <div style={{ flex: 1 }}></div>
@@ -59,8 +59,9 @@ export default function Thumbnailer({ file, onClose, token, collection }) {
                 sha = sha.split('/').pop();
               }
               uploadThumbnail({ repo, path, branch, data, token, sha }).then(() => {
+                updateCollection({ ...collection, uploadTo: selectedRepo });
                 onClose(true);
-              })
+              }).catch(alert);
             }}>Submit</button>
           </Row>
         </Panel>

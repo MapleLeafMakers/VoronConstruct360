@@ -60,6 +60,17 @@ def kv_get(key):
 
 
 @rpc.method
+def kv_keys(pattern=None):
+    query = "SELECT key FROM kv";
+    params = ()
+    if pattern:
+        query = f'{query} WHERE key LIKE ?'
+        params = (pattern,)
+    with closing(conn.execute(query, params)) as cursor:
+        return [r[0] for r in cursor.fetchall()]
+
+
+@rpc.method
 def kv_set(key, value):
     conn.execute('INSERT OR REPLACE INTO kv (key, value) VALUES (?, ?)', (key, json.dumps(value)))
     conn.commit()
@@ -79,7 +90,20 @@ def kv_mget(keys):
 def kv_mset(obj):
     rows = [(k, json.dumps(v)) for k, v in obj.items()]
     conn.executemany('INSERT OR REPLACE INTO kv (key, value) VALUES (?, ?)', rows)
+    conn.commit()
 
+@rpc.method
+def kv_del(key):
+    conn.execute('DELETE FROM kv WHERE key=?',(key,))
+    conn.commit()
+
+@rpc.method
+def kv_mdel(keys=None, pattern=None):
+    if keys:
+        conn.execute('DELETE FROM kv WHERE key IN ({})'.format(', '.join('?' * len(keys))), keys)
+    if pattern:
+        conn.execute('DELETE FROM kv WHERE key LIKE ?', (pattern,))
+    conn.commit()
 
 @rpc.method
 def get_screenshot(width=256, height=256):

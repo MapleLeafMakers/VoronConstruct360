@@ -54,7 +54,7 @@ export default function Preview({ file, onClickImage, token }) {
 
             {Object.keys(file.content_types).filter(k => k != 'thumb' && k != 'meta').map(ct => {
               const repo = repoFromUrl(file.content_types[ct].url);
-              return (<div>
+              return (<div key={file.content_types[ct].url}>
                 <span style={{ fontWeight: 'bold' }}>{ct}: </span>
                 <span>{sizeOf(file.content_types[ct].size)} [<a href={`https://github.com/${repo}`} > <FaGithub style={{ verticalAlign: 'top' }} /> {repo}</a>]</span>
               </div>)
