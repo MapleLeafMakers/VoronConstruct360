@@ -70,9 +70,9 @@ jobs:
           git config user.email "<>"
           git fetch
           git checkout gh-pages
-          git rm assets/*
-          git rm icons/*
-          git rm img/*
+          git rm assets/* || true
+          git rm icons/* || true
+          git rm img/* || true
           cp -Rv dist/spa/* .
           git add -v index.html
           git add -v assets/
