@@ -4,6 +4,7 @@ try:
 except ImportError:
     has_adsk = False
 
+import contextlib
 import traceback
 import tempfile
 import json
@@ -40,15 +41,28 @@ def _load_legacy_state():
                 kv_set('collections', state['repo_list'])
         os.unlink(_legacy_save_file)
 
-def _download(apiUrl, token, extension=''):
-    if extension:
-        extension = '.{}'.format(extension)
 
-    # Create a temporary file with the file extension
+@contextlib.contextmanager
+def download(apiUrl, token, filename=None, extension=''):
+
+    if not filename:
+        filename = 'model'
+
+    filename = '{}.{}'.format(filename, extension)
     response = requests.get(apiUrl, headers={'Accept': 'application/vnd.github.raw', 'Authorization': 'Bearer {}'.format(token)})
-    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=extension)
-    temp_file.write(response.content)
-    return temp_file.name
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        full_path = os.path.join(temp_dir, filename)
+
+        with open(full_path, 'wb') as temp_file:
+            temp_file.write(response.content)
+
+        yield full_path
+
+
+@rpc.method
+def get_version():
+    return 2
 
 
 @rpc.method
@@ -121,43 +135,30 @@ def get_screenshot(width=256, height=256, transparent=False, antialias=True):
 
 
 @rpc.method
-def open_model(url, content_type, token):
-    fileName = _download(url, token, extension=content_type)
+def open_model(url, token, content_type=None, filename=None):
     app = adsk.core.Application.get()
-
     importManager = app.importManager
-    try:
-        options = create_import_options(fileName, content_type)
-    except:
-        raise ValueError("Failed to create options for {} | {}".format(fileName, content_type))
 
-    try:
+    with download(url, token, filename=filename, extension=content_type) as file_path:
+        options = create_import_options(file_path, content_type)
         importManager.importToNewDocument(options)
-    except:
-         if _ui:
-            _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
 
 @rpc.method
-def import_model(url, content_type, token):
-    fileName = _download(url, token, extension=content_type)
+def import_model(url, token, content_type=None, filename=None):
     app = adsk.core.Application.get()
     importManager = app.importManager
 
     # Get active design
     product = app.activeProduct
     design = adsk.fusion.Design.cast(product)
-
-    options = create_import_options(fileName, content_type)
-
     target = design.activeComponent
-    if isinstance(options, (adsk.core.DXF2DImportOptions, adsk.core.SVGImportOptions)):
-        target = design.activeEditObject
-    try:
+
+    with download(url, token, extension=content_type, filename=filename) as file_path:
+        options = create_import_options(file_path, content_type)
+        if isinstance(options, (adsk.core.DXF2DImportOptions, adsk.core.SVGImportOptions)):
+            target = design.activeEditObject
         importManager.importToTarget(options, target);
-    except:
-         if _ui:
-            _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
 
 @rpc.method
@@ -194,25 +195,23 @@ def close():
 
 @rpc.method
 def autothumb(url, content_type, token, width=256, height=256, transparent=False, antialias=True):
-    fileName = _download(url, token, extension=content_type)
+
     app = adsk.core.Application.get()
     screenshot = None
     importManager = app.importManager
-    try:
-        options = create_import_options(fileName, content_type)
-    except:
-        raise ValueError("Failed to create options for {} | {}".format(fileName, content_type))
-    doc = None
-    try:
-        doc = importManager.importToNewDocument(options)
-        screenshot = get_screenshot(256, 256, transparent=transparent, antialias=antialias)
-    except:
-        pass
-    finally:
-        if doc:
-            doc.close(False)
+    with download(url, token, extension=content_type) as file_path:
+        options = create_import_options(file_path, content_type)
+        doc = None
+        try:
+            doc = importManager.importToNewDocument(options)
+            screenshot = get_screenshot(256, 256, transparent=transparent, antialias=antialias)
+        except:
+            pass
+        finally:
+            if doc:
+                doc.close(False)
 
-    return screenshot
+        return screenshot
 
 def create_import_options(filename, ext):
     if ext in ('stp', 'step'):
