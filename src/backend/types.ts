@@ -1,13 +1,4 @@
-export type JsonSerializable =
-  | string
-  | number
-  | boolean
-  | string[]
-  | number[]
-  | boolean[]
-  | null
-  | { [key: string]: JsonSerializable }
-  | [JsonSerializable];
+export type JsonSerializable = any;
 
 export type KeysOrPattern =
   | { keys?: string[]; pattern: string }
@@ -25,6 +16,13 @@ declare global {
 }
 
 export interface Backend {
+  isFusion360: boolean;
+  version: number;
+  latestVersion: number;
+  updateUrl?: string;
+
+  get_version(): Promise<number>;
+
   kv_get({
     key,
     or,
@@ -62,24 +60,31 @@ export interface Backend {
     transparent?: boolean;
     antialias?: boolean;
   }): Promise<string>;
+
   open_model({
     url,
-    content_type,
     token,
+    content_type,
+    filename,
   }: {
     url: string;
-    content_type: ContentTypes;
     token: string;
+    content_type: ContentTypes;
+    filename?: string;
   }): Promise<void>;
+
   import_model({
     url,
-    content_type,
     token,
+    content_type,
+    filename,
   }: {
     url: string;
-    content_type: ContentTypes;
     token: string;
+    content_type: ContentTypes;
+    filename?: string;
   }): Promise<void>;
+
   export_model({ step, f3d }: { step: boolean; f3d: boolean }): Promise<{
     name: string;
     step?: string;

@@ -54,11 +54,6 @@
           />
           <q-space />
           <q-btn
-            v-if="
-              node.content_types?.step ||
-              node.content_types?.dxf ||
-              node.content_types?.svg
-            "
             icon="mdi-import"
             size="sm"
             dense

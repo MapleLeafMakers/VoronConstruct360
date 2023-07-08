@@ -7,6 +7,27 @@ import {
 import rpc from './rpc';
 
 export class FusionBackend implements Backend {
+  isFusion360: boolean;
+  version: number;
+  latestVersion = 2;
+  updateUrl = 'https://github.com/MapleLeafMakers/VoronConstruct360/releases';
+
+  constructor() {
+    this.isFusion360 = true;
+    this.version = -1;
+  }
+
+  async get_version() {
+    if (this.version === -1) {
+      try {
+        this.version = await rpc.request('get_version', {});
+      } catch (err) {
+        this.version = 1;
+      }
+    }
+    return this.version;
+  }
+
   async kv_get({ key, or = null }: { key: string; or?: JsonSerializable }) {
     const result: JsonSerializable = await rpc.request('kv_get', { key: key });
     if (result === null) {
@@ -72,26 +93,40 @@ export class FusionBackend implements Backend {
 
   async open_model({
     url,
-    content_type,
     token,
+    content_type,
+    filename,
   }: {
     url: string;
-    content_type: ContentTypes;
     token: string;
+    content_type: ContentTypes;
+    filename?: string;
   }) {
-    await rpc.request('open_model', { url, content_type, token });
+    await rpc.request('open_model', {
+      url,
+      token,
+      content_type,
+      filename: this._version < 2 ? undefined : filename,
+    });
   }
 
   async import_model({
     url,
-    content_type,
     token,
+    content_type,
+    filename,
   }: {
     url: string;
-    content_type: ContentTypes;
     token: string;
+    content_type: ContentTypes;
+    filename?: string;
   }) {
-    await rpc.request('import_model', { url, content_type, token });
+    await rpc.request('import_model', {
+      url,
+      token,
+      content_type,
+      filename: this._version < 2 ? undefined : filename,
+    });
   }
 
   async export_model({ step, f3d }: { step: boolean; f3d: boolean }) {

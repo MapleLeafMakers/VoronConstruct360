@@ -387,15 +387,15 @@ const uploadStepError = computed(() => {
 });
 
 const handleImagePaste = (e: ClipboardEvent) => {
-  let cbPayload = [...e.clipboardData.items]; // Capture the ClipboardEvent's eventData payload as an array
-  cbPayload = cbPayload.filter((i) => /image/.test(i.type)); // Strip out the non-image bits
+  let cbPayload = [...e.clipboardData?.items];
+  cbPayload = cbPayload.filter((i) => /image/.test(i.type));
   if (!cbPayload.length || cbPayload.length === 0) return false;
-  let reader = new FileReader(); // Instantiate a FileReader...
+  let reader = new FileReader();
   reader.onload = () => {
     const dataUrl = reader.result;
     thumbnail.value = dataUrl as string;
   };
-  reader.readAsDataURL(cbPayload[0].getAsFile()); // ... then read in the pasteboard image data as Base64
+  reader.readAsDataURL(cbPayload[0].getAsFile());
 };
 
 const fileToThumbnail = (file: File) => {

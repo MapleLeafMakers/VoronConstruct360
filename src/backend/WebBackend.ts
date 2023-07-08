@@ -10,6 +10,18 @@ function _escapeRegExp(s: string) {
 }
 
 export class WebBackend implements Backend {
+  isFusion360: boolean;
+  version = 1;
+  latestVersion = 1;
+
+  constructor() {
+    this.isFusion360 = false;
+  }
+
+  async get_version() {
+    return this.version;
+  }
+
   async kv_get({ key, or }: { key: string; or?: JsonSerializable }) {
     const result = localStorage.getItem(key);
     if (result === null) {

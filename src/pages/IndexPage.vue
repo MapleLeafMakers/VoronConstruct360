@@ -15,6 +15,7 @@
         </template>
         <template v-slot:after>
           <q-btn flat square dense icon="more_vert">
+            <q-badge v-if="updateAvailable" color="orange" floating>!</q-badge>
             <q-menu square>
               <q-list dense style="min-width: 150px">
                 <q-item
@@ -51,6 +52,22 @@
                   </q-item-section>
                   <q-item-section>Auto-Thumb</q-item-section>
                 </q-item>
+                <q-item
+                  v-if="updateAvailable"
+                  dense
+                  clickable
+                  v-close-popup
+                  class="bg-orange"
+                  :href="store.backend.updateUrl"
+                >
+                  <q-item-section avatar>
+                    <q-icon name="upgrade" color="white" />
+                  </q-item-section>
+                  <q-item-section class="text-white"
+                    >Update Available</q-item-section
+                  >
+                </q-item>
+                <q-separator />
                 <q-item
                   dense
                   clickable
@@ -365,9 +382,11 @@ const onImportModel = ({
   contentType =
     contentType ||
     (cts.f3d ? 'f3d' : cts.step ? 'step' : cts.dxf ? 'dxf' : cts.svg && 'svg');
+
   store.backend.import_model({
     url: cts[contentType as string].url,
     token: store.token,
+    filename: node.name,
     content_type: contentType as ContentTypes,
   });
 };
@@ -387,6 +406,7 @@ const onOpenModel = ({
   store.backend.open_model({
     url: cts[contentType as string].url,
     token: store.token,
+    filename: node.name,
     content_type: contentType as ContentTypes,
   });
 };
@@ -410,4 +430,8 @@ const onEdit = ({ nodeId }: { nodeId: string }) => {
     store.saveCollections();
   });
 };
+
+const updateAvailable = computed(() => {
+  return store.backend?.version < store.backend?.latestVersion;
+});
 </script>

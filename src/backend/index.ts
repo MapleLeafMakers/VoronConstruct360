@@ -10,5 +10,11 @@ export const initBackend: () => Promise<Backend> = async () => {
       return new WebBackend();
     }
   }
-  return new FusionBackend();
+  const backend = new FusionBackend();
+  try {
+    console.log('Backend Version: ', await backend.get_version());
+  } catch (err) {
+    console.error(err);
+  }
+  return backend;
 };
