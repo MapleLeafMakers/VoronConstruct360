@@ -21,7 +21,7 @@ jobs:
     - name: Build
       run: |
         pip install wheel
-        pip install -r plugin/requirements.txt --target=plugin/lib
+        pip install -r plugin/requirements.txt --no-user --target=plugin/lib
         npm install
         npm run build
 
@@ -71,7 +71,7 @@ jobs:
           git fetch
           git checkout gh-pages
           git rm main.*
-          cp -Rv dist/* .
+          cp -Rv dist/spa/* .
           git add -v index.html
           git add -v main.*
           git commit -m 'Built from ${{ github.ref }}'

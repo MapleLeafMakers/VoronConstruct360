@@ -1,0 +1,197 @@
+// app global css in SCSS form
+
+$text-color: #6b6b6b;
+$page-background: #f2f2f2;
+html,
+body,
+#q-app,
+.q-layout,
+.q-page-container,
+.q-page {
+  font-family: Arial;
+  font-size: 12px;
+  position: absolute;
+  font-weight: 100;
+  top: 0px;
+  bottom: 0px;
+  left: 0px;
+  right: 0px;
+  padding: 0px;
+  margin: 0px;
+  background-color: $page-background;
+  overflow-y: hidden;
+  overscroll-behavior: none;
+  user-select: none;
+}
+
+.q-tab-panels {
+  margin-top: 4px;
+  background-color: $page-background;
+}
+.previewPane {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  color: $text-color;
+}
+
+.previewPane a {
+  color: $text-color;
+  font-weight: bold;
+  text-decoration: none;
+}
+
+.previewPane a:hover {
+  color: $text-color;
+  font-weight: bold;
+  text-decoration: underline;
+}
+
+.previewPane .thumbnail {
+  border-right: 1px solid #999999;
+}
+
+.previewPane .meta {
+  padding: 4px;
+}
+
+.q-btn.no-outline:focus {
+  outline-color: blue !important;
+  outline-style: solid !important;
+  outline-width: 1px !important;
+}
+input,
+select,
+button {
+  border-radius: 0px;
+  border-style: solid;
+  border-width: 1px;
+}
+input[type='text']:focus,
+select:focus,
+.q-btn:focus {
+  outline-style: solid;
+  outline-width: 1px;
+  outline-color: blue;
+}
+
+.q-field--dense .q-field__control,
+.q-field--dense .q-field__marginal {
+  height: 32px;
+}
+
+.q-card label {
+  width: 10em;
+  text-align: right;
+  margin-right: 4px;
+  line-height: 24px;
+}
+.q-tree__node-header-content {
+  color: $text-color;
+}
+
+.q-btn {
+  border-radius: 0px;
+}
+
+.q-btn.bordered {
+  border: 1px solid $text-color;
+}
+
+.q-item {
+  color: $text-color;
+}
+
+.q-menu {
+  background-color: $page-background;
+}
+.q-dialog-plugin.q-card {
+  background-color: $page-background;
+  color: $text-color;
+}
+.q-menu .q-item__section--side {
+  padding-right: 0px;
+}
+.q-menu .q-item__section {
+  white-space: nowrap;
+}
+
+.q-tree__node-header .q-tree__hovercontrol {
+  display: none;
+}
+
+.q-tree__node-header:focus .q-tree__hovercontrol,
+.q-tree__node-header:hover .q-tree__hovercontrol {
+  display: block;
+}
+
+.q-tree--dense .q-tree__img {
+  height: 48px;
+}
+
+.q-tree__node--selected .q-tree__node-header-content {
+  color: $text-color;
+  background-color: #c1c1c1;
+}
+
+.q-tabs--dense .q-tab {
+  min-height: 24px;
+}
+
+.q-tabs--dense .q-tab__content {
+  padding: 0px;
+}
+.q-tabs--dense .q-tab__label {
+  font-size: 12px;
+}
+
+.thumbnail-edit-wrapper {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+.thumbnail-edit-wrapper img {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 50%;
+}
+
+.thumbnail-edit-wrapper .editor-thumb {
+  position: relative;
+}
+
+.thumbnail-edit-wrapper .editor-thumb::after {
+  content: '';
+  display: block;
+  padding-bottom: 100%;
+}
+
+.pathTree {
+  max-height: 100px;
+  min-height: 100px;
+  overflow-y: scroll;
+  flex: 1;
+  border: 1px solid $text-color;
+  background-color: white;
+}
+.pathTree--disabler {
+  position: absolute;
+  background-color: fade-out($color: $page-background, $amount: 0.6);
+  cursor: not-allowed;
+  top: 0px;
+  left: 0px;
+  right: 0px;
+  bottom: 0px;
+}
+.autothumb-preview {
+  max-height: 128px;
+  object-fit: contain;
+  border: 1px solid $text-color;
+}
+.thumb-list {
+  flex: 1;
+  height: 80px;
+  border: 1px solid $text-color;
+}

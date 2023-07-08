@@ -35,11 +35,17 @@ yarn-error.log*
 
 # local .env files
 .env.local*
+
 __pycache__
 *.pyc
 dist/
 venv
+node_modules
+.DS_Store
 .vscode
+.idea
+*.iml
+*.log*
 .module-cache
 build/
 plugin/lib

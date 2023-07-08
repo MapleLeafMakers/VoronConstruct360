@@ -106,10 +106,15 @@ def kv_mdel(keys=None, pattern=None):
     conn.commit()
 
 @rpc.method
-def get_screenshot(width=256, height=256):
+def get_screenshot(width=256, height=256, transparent=False, antialias=True):
     with tempfile.TemporaryDirectory() as tmp_dir:
         fname = os.path.join(tmp_dir, 'thumbnail.png')
-        _app.activeViewport.saveAsImageFile(fname, height, width)
+        options = adsk.core.SaveImageFileOptions.create(fname)
+        options.height = height
+        options.width = width
+        options.isBackgroundTransparent = transparent
+        options.antialias = antialias
+        _app.activeViewport.saveAsImageFileWithOptions(options)
         with open(fname, 'rb') as f:
             return 'data:image/png;base64,{}'.format(base64.b64encode(f.read()).decode('utf8'))
 
@@ -181,6 +186,32 @@ def export_model(step=True, f3d=True):
 
         return data
 
+@rpc.method
+def close():
+    palette = _ui.palettes.itemById('voronConstruct')
+    palette.isVisible = False
+
+@rpc.method
+def autothumb(url, content_type, transparent, token):
+    fileName = _download(url, token, extension=content_type)
+    app = adsk.core.Application.get()
+    screenshot = None
+    importManager = app.importManager
+    try:
+        options = create_import_options(fileName, content_type)
+    except:
+        raise ValueError("Failed to create options for {} | {}".format(fileName, content_type))
+    doc = None
+    try:
+        doc = importManager.importToNewDocument(options)
+        screenshot = get_screenshot(256, 256)
+    except:
+        pass
+    finally:
+        if doc:
+            doc.close(False)
+
+    return screenshot
 
 def create_import_options(filename, ext):
     if ext in ('stp', 'step'):
@@ -212,9 +243,13 @@ if has_adsk:
                 # Create and display the palette.
                 palette = _ui.palettes.itemById('voronConstruct')
                 if not palette:
+                    interface_url = 'https://mapleleafmakers.github.io/VoronConstruct360/'
+                    prefs = kv_get('preferences')
+                    if prefs and prefs.get('interfaceUrl'):
+                        interface_url = prefs.get('interfaceUrl');
                     palette = _ui.palettes.add('voronConstruct', 'Voron Construct, CAD...Lots of CAD',
-                                               'https://mapleleafmakers.github.io/VoronConstruct360/',
-                                               True, True, True, 700, 200, True)
+                                               interface_url,
+                                               True, False, True, 700, 200, True)
 
                     # Dock the palette to the right side of Fusion window.
                     palette.dockingState = adsk.core.PaletteDockingStates.PaletteDockStateRight
@@ -228,8 +263,6 @@ if has_adsk:
                     palette.navigatingURL.add(onNavigatingURL)
                     handlers.append(onNavigatingURL)
 
-
-                    # Add handler to CloseEvent of the palette.
                 else:
                     palette.isVisible = True
             except:
