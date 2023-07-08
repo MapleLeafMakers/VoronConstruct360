@@ -76,7 +76,7 @@
             <option
               :value="repo.repr"
               :key="repo.repr"
-              v-for="repo of collection.repositories"
+              v-for="repo of collection?.repositories"
             >
               {{ repo.repr }}
             </option>
@@ -160,12 +160,17 @@
 </template>
 
 <script setup lang="ts">
-import { RepoNode, useCoreStore } from 'src/stores/core';
+import {
+  BlobRepoNode,
+  CollectionRepoNode,
+  RepoNode,
+  Repository,
+  useCoreStore,
+} from 'src/stores/core';
 import { format, useDialogPluginComponent } from 'quasar';
 const { humanStorageSize } = format;
 
 import { ref, reactive, computed } from 'vue';
-import rpc from 'src/rpc';
 import { uploadFiles } from 'src/repodb';
 const selectedPath = ref(null);
 const expandedPaths = ref([]);
@@ -175,12 +180,14 @@ const modelsToProcess = ref([] as RepoNode[]);
 const totalModelsToProcess = ref(0);
 const latestThumb = ref('');
 const selectedRepo = ref(null);
-const uploadProgress = ref(null);
+const uploadProgress = ref<number[]>([]);
 const bgTransparency = ref(false);
 
 const collection = computed(() => {
   if (!collectionId.value) return null;
-  return store.tree.filter((n) => n.id === collectionId.value)[0];
+  return store.tree.filter(
+    (n) => n.id === collectionId.value
+  )[0] as CollectionRepoNode;
 });
 
 const processedThumbs = ref(
@@ -236,19 +243,20 @@ const getModels = (tree: RepoNode[]) => {
     }
   }
 
-  return nodes.filter(
-    (n) =>
-      !n?.content_types?.thumb &&
-      (n?.content_types?.step || n?.content_types?.f3d)
-  );
+  return nodes.filter((n: RepoNode) => {
+    let node = n as BlobRepoNode;
+    !node?.content_types?.thumb &&
+      (node?.content_types?.step || node?.content_types?.f3d);
+  });
 };
 
 const processThumbs = async () => {
   while (modelsToProcess.value.length > 0) {
     await new Promise((resolve) => setTimeout(resolve, 100));
-    const model = modelsToProcess.value.shift() as RepoNode;
-    const screenshot = (await rpc.request('autothumb', {
-      url: model?.content_types?.f3d?.url || model?.content_types?.step?.url,
+    const model = modelsToProcess.value.shift() as BlobRepoNode;
+    const screenshot = (await store.backend.autothumb({
+      url: (model?.content_types?.f3d?.url ||
+        model?.content_types?.step?.url) as string,
       content_type: model?.content_types?.f3d ? 'f3d' : 'step',
       transparent: bgTransparency.value,
       token: store.token,
@@ -265,9 +273,9 @@ const processThumbs = async () => {
 };
 
 const uploadAndCommit = async () => {
-  const repo = collection.value.repositories.filter(
+  const repo = collection.value?.repositories.filter(
     (r) => r.repr === selectedRepo.value
-  )[0];
+  )[0] as Repository;
   await uploadFiles({
     repo: repo.repo,
     branch: repo.branch,

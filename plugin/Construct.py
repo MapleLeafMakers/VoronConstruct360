@@ -77,7 +77,8 @@ def kv_set(key, value):
 
 
 @rpc.method
-def kv_mget(keys):
+def kv_mget(keys=None, pattern=None):
+
     q = 'SELECT key, value FROM kv WHERE key IN ({})'.format(', '.join('?' * len(keys)))
     with closing(conn.execute(q, keys)) as cursor:
         result = dict()
@@ -192,7 +193,7 @@ def close():
     palette.isVisible = False
 
 @rpc.method
-def autothumb(url, content_type, transparent, token):
+def autothumb(url, content_type, token, width=256, height=256, transparent=False, antialias=True):
     fileName = _download(url, token, extension=content_type)
     app = adsk.core.Application.get()
     screenshot = None
@@ -204,7 +205,7 @@ def autothumb(url, content_type, transparent, token):
     doc = None
     try:
         doc = importManager.importToNewDocument(options)
-        screenshot = get_screenshot(256, 256)
+        screenshot = get_screenshot(256, 256, transparent=transparent, antialias=antialias)
     except:
         pass
     finally:

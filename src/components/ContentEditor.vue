@@ -109,8 +109,8 @@
                 @drop="handleThumbnailDrop"
                 @paste="handleImagePaste"
                 @beforeinput="
-                  (e) => {
-                    if (e.inputType !== 'insertFromPaste') {
+                  (e:Event) => {
+                    if ((e as InputEvent).inputType !== 'insertFromPaste') {
                       e.preventDefault();
                       e.stopPropagation();
                     }
@@ -214,10 +214,15 @@
 </template>
 
 <script setup lang="ts">
-import { uid, useDialogPluginComponent } from 'quasar';
+import { QTree, uid, useDialogPluginComponent } from 'quasar';
 import { downloadBlobImageAsDataUri, uploadFiles } from 'src/repodb';
-import rpc from 'src/rpc';
-import { RepoNode, ModelContentType, useCoreStore } from 'src/stores/core';
+import {
+  RepoNode,
+  ModelContentType,
+  useCoreStore,
+  CollectionRepoNode,
+  BlobRepoNode,
+} from 'src/stores/core';
 import { onMounted, ref, computed, reactive } from 'vue';
 const bgTransparency = ref(false);
 const filePicker = ref<HTMLInputElement | null>(null);
@@ -225,17 +230,18 @@ const uploadStep = ref(false);
 const uploadF3d = ref(false);
 const store = useCoreStore();
 const thumbnailChanged = ref(false);
-const treeRef = ref(null);
+const treeRef = ref<QTree>();
 const newFolderName = ref('New Folder');
 const props = defineProps<{
-  initialValue?: RepoNode;
-  collection?: RepoNode;
+  initialValue?: BlobRepoNode;
+  collection?: CollectionRepoNode;
 }>();
 const name = ref(props?.initialValue?.name);
 const thumbnail = ref('');
-const collection =
-  props.collection ||
-  store.getTopLevelNode(props.initialValue?.id?.split('|')[0] as string);
+const collection = (props.collection ||
+  store.getTopLevelNode(
+    props.initialValue?.id?.split('|')[0] as string
+  )) as CollectionRepoNode;
 
 let path = '';
 if (props?.initialValue?.path) {
@@ -246,8 +252,12 @@ const expandedPaths = ref(['/']);
 const selectedPath = ref(pathFilter.value);
 const busy = ref(false);
 
-const onEditingComplete = (event, node, newFolderName) => {
-  const parent = treeRef.value.getNodeByKey(
+const onEditingComplete = (
+  event: FocusEvent | KeyboardEvent,
+  node: PathTreeNode,
+  newFolderName: string
+) => {
+  const parent = treeRef.value?.getNodeByKey(
     node.id.split('/').slice(0, -1).join('/')
   );
   let isValid = true;
@@ -255,7 +265,9 @@ const onEditingComplete = (event, node, newFolderName) => {
     isValid = false;
   }
 
-  const matches = parent.children.filter((n) => n.name === newFolderName);
+  const matches = parent.children.filter(
+    (n: PathTreeNode) => n.name === newFolderName
+  );
   if (matches.length > 1) {
     console.log('matches', matches);
     isValid = false;
@@ -267,16 +279,26 @@ const onEditingComplete = (event, node, newFolderName) => {
   if (!isValid) {
     event.preventDefault();
     event.stopImmediatePropagation();
-    event.target.focus();
+    (event.target as HTMLElement)?.focus();
   } else {
     node.editing = false;
   }
 };
-const pathToId = (path) => {
+const pathToId = (path: string) => {
   return btoa(path).replaceAll('=', '');
 };
 
-const buildPathTree: (tree: RepoNode[]) => RepoNode[] = (tree) => {
+type PathTreeNode = {
+  id: string;
+  path: string;
+  icon: string;
+  selectable: boolean;
+  name: string;
+  editing: boolean;
+  children: PathTreeNode[];
+};
+
+const buildPathTree: (tree: RepoNode[]) => PathTreeNode[] = (tree) => {
   const newTree = tree
     .filter((n) => n.type === 'tree')
     .map((n: RepoNode) => ({
@@ -286,7 +308,7 @@ const buildPathTree: (tree: RepoNode[]) => RepoNode[] = (tree) => {
       selectable: true,
       name: n.name,
       editing: false,
-      children: n.children ? buildPathTree(n.children) : undefined,
+      children: n.children ? buildPathTree(n.children) : [],
     }));
 
   return newTree;
@@ -311,7 +333,7 @@ const onNewFolder = (event: Event) => {
   newFolderName.value = 'New Folder';
   event.preventDefault();
   event.stopPropagation();
-  const node = treeRef?.value.getNodeByKey(selectedPath.value);
+  const node = treeRef.value?.getNodeByKey(selectedPath.value);
   const newNode = {
     id: node.path + '/' + uid(),
     name: 'New Folder',
@@ -323,7 +345,7 @@ const onNewFolder = (event: Event) => {
   };
   node.children.push(newNode);
   selectedPath.value = newNode.id;
-  treeRef.value.setExpanded(node.id, true);
+  treeRef.value?.setExpanded(node.id, true);
   setTimeout(() => {
     const node = document.querySelector(`#pathTree--${pathToId(newNode.id)}`);
     console.log('node', node);
@@ -369,10 +391,9 @@ const handleImagePaste = (e: ClipboardEvent) => {
   cbPayload = cbPayload.filter((i) => /image/.test(i.type)); // Strip out the non-image bits
   if (!cbPayload.length || cbPayload.length === 0) return false;
   let reader = new FileReader(); // Instantiate a FileReader...
-  reader.onload = (e) => {
+  reader.onload = () => {
     const dataUrl = reader.result;
-    console.log('pasted', dataUrl);
-    thumbnail.value = dataUrl;
+    thumbnail.value = dataUrl as string;
   };
   reader.readAsDataURL(cbPayload[0].getAsFile()); // ... then read in the pasteboard image data as Base64
 };
@@ -398,9 +419,10 @@ const handleThumbnailDrop = (e: DragEvent) => {
 const handleFilePicker = (e: Event) => {
   e.stopPropagation();
   e.preventDefault();
-  fileToThumbnail(e.target?.files[0] as File).then(() => {
+  const fileInput = e.target as HTMLInputElement;
+  fileToThumbnail(fileInput.files?.[0] as File).then(() => {
     if (filePicker.value !== null) {
-      filePicker.value.value = null;
+      filePicker.value.value = '';
     }
   });
 };
@@ -411,8 +433,8 @@ const handleFilePickerButton = (e: Event) => {
   filePicker.value?.click();
 };
 
-const handleCaptureClick = async (event: Event) => {
-  const thumb = await rpc.request('get_screenshot', {
+const handleCaptureClick = async () => {
+  const thumb = await store.backend.get_screenshot({
     width: 256,
     height: 256,
     transparent: bgTransparency.value,
@@ -429,7 +451,7 @@ const loadThumbnail = async () => {
   const blobUrl = props?.initialValue?.content_types?.thumb?.url;
   const metaThumb = props?.initialValue?.meta?.thumb;
   if (metaThumb) {
-    thumbnail.value = metaThumb;
+    thumbnail.value = metaThumb as string;
   } else if (blobUrl) {
     thumbnail.value = await downloadBlobImageAsDataUri({
       url: blobUrl,
@@ -440,8 +462,8 @@ const loadThumbnail = async () => {
   }
 
   if (!props?.initialValue?.name) {
-    await rpc
-      .request('export_model', { f3d: false, step: false })
+    await store.backend
+      .export_model({ f3d: false, step: false })
       .then((modelData) => {
         name.value = modelData?.name;
       });
@@ -478,22 +500,22 @@ const { dialogRef, onDialogHide, onDialogOK, onDialogCancel } =
 function onOKClick() {
   busy.value = true;
   setTimeout(() => {
-    rpc
-      .request('export_model', { f3d: uploadF3d.value, step: uploadStep.value })
+    store.backend
+      .export_model({ f3d: uploadF3d.value, step: uploadStep.value })
       .then((modelData) => {
         const files = [];
         busy.value = false;
         if (uploadF3d.value) {
           files.push({
             path: `${selectedPath.value}/${name.value}.f3d`,
-            content: modelData.f3d.split(',')[1],
+            content: modelData.f3d?.split(',')[1],
             encoding: 'base64',
           });
         }
         if (uploadStep.value) {
           files.push({
             path: `${selectedPath.value}/${name.value}.step`,
-            content: modelData.step.split(',')[1],
+            content: modelData.step?.split(',')[1],
             encoding: 'base64',
           });
         }
@@ -513,6 +535,7 @@ function onOKClick() {
           files,
           message: `Add ${selectedPath.value}`,
           token: store.token,
+          progressCallback: null,
         }).then(() => {
           busy.value = false;
           onDialogOK();

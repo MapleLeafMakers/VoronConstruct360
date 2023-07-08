@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { downloadBlobImageAsDataUri, getMergedTrees } from '../repodb.js';
 import { reactive } from 'vue';
-import rpc from 'src/rpc';
+import { initBackend, Backend, JsonSerializable } from '../backend';
 
 export interface ModelContentType {
   path: string;
@@ -12,17 +12,34 @@ export interface ModelContentType {
   branch: string;
 }
 
+export interface Repository {
+  repo: string;
+  branch?: string;
+  repr: string;
+  path: string;
+}
+
 export interface RepoNode {
   children?: RepoNode[];
   id: string;
   name: string;
   type: 'blob' | 'tree' | 'repo';
   path: string;
-  meta: unknown;
   icon?: string;
   img?: string;
-  lazy?: boolean | string;
+
+  selectable: boolean;
+  expandable: boolean;
+}
+
+export interface CollectionRepoNode extends RepoNode {
+  repositories: Repository[];
+  lazy?: string | boolean;
   uploadTo?: string;
+}
+
+export interface BlobRepoNode extends RepoNode {
+  meta: { [key: string]: JsonSerializable };
   content_types?: {
     f3d?: ModelContentType;
     step?: ModelContentType;
@@ -31,8 +48,6 @@ export interface RepoNode {
     meta?: ModelContentType;
     thumb?: ModelContentType;
   };
-  selectable: boolean;
-  expandable: boolean;
 }
 
 export interface Preferences {
@@ -63,8 +78,9 @@ export const useCoreStore = defineStore('core', {
   state: () => ({
     globalCursor: '',
     search: '' as string,
-    tree: reactive([]) as RepoNode[],
+    tree: reactive([]) as CollectionRepoNode[],
     token: '',
+    backend: {} as Backend,
     preferences: {
       showThumbnails: false,
       previewSize: 128,
@@ -80,63 +96,72 @@ export const useCoreStore = defineStore('core', {
       return this.tree.filter((n) => n.id === id)[0];
     },
     async loadState() {
-      await rpc.init();
-      const { token, collections, preferences } = await rpc.request('kv_mget', {
+      this.backend = await initBackend();
+      const { token, collections, preferences } = await this.backend.kv_mget({
         keys: ['token', 'collections', 'preferences'],
       });
+
       if (token) {
-        this.token = token;
+        this.token = token as string;
       }
       if (collections) {
-        for (const c of collections) {
+        const repoCollections = collections as unknown as CollectionRepoNode[];
+        for (const c of repoCollections) {
           c.selectable = false;
           c.icon = 'mdi-github';
           if (Array.isArray(c.repositories) && c.repositories.length > 0) {
-            c.repositories = c.repositories.map((r) => {
+            c.repositories = c.repositories.map((r: string | Repository) => {
               if (typeof r === 'string') {
                 return {
                   repr: r,
                   repo: r.split('/').slice(0, 2).join('/'),
                   path: r.split('/').slice(2).join('/'),
                   branch: r.split('#')[1] || null,
-                };
+                } as Repository;
               }
               return r;
             });
           }
         }
-        console.log(collections);
-        this.tree = reactive(collections);
+        this.tree = reactive(repoCollections);
         this.tree.forEach((n) => this.reloadCollection({ nodeId: n.id }));
       }
       if (preferences) {
-        for (const key of Object.keys(preferences)) {
-          this.preferences[key] = preferences[key];
-        }
+        Object.assign(this.preferences, preferences);
       }
     },
+
     async saveToken() {
-      rpc.request('kv_set', {
+      this.backend.kv_set({
         key: 'token',
         value: this.token,
       });
     },
+
     async saveCollections() {
-      rpc.request('kv_set', {
+      this.backend.kv_set({
         key: 'collections',
-        value: this.tree.map((n) => ({ ...n, children: undefined })),
+        value: this.tree.map(
+          (n: CollectionRepoNode) =>
+            ({
+              ...n,
+              children: [],
+            } as CollectionRepoNode)
+        ),
       });
     },
 
     async savePreferences() {
-      return rpc.request('kv_set', {
+      return this.backend.kv_set({
         key: 'preferences',
         value: { ...this.preferences },
       });
     },
 
     async reloadCollection({ nodeId }: { nodeId: string }) {
-      const node = this.tree.filter((n: RepoNode) => n.id === nodeId)[0];
+      const node = this.tree.filter(
+        (n: CollectionRepoNode) => n.id === nodeId
+      )[0];
       node.lazy = 'loading';
       const tree = await getMergedTrees({
         repositories: node?.repositories.map((r) => r.repr),
@@ -151,7 +176,7 @@ export const useCoreStore = defineStore('core', {
       node.children = reactive(tree);
     },
 
-    async setNodeThumbnail(node: RepoNode) {
+    async setNodeThumbnail(node: BlobRepoNode) {
       const dataUrl = await downloadBlobImageAsDataUri({
         url: node?.content_types?.thumb?.url,
         token: this.token,

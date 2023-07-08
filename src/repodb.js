@@ -452,6 +452,7 @@ export async function getLatestCommitForPath({ repo, branch, path, token }) {
   const resp = await axios.get(`${BASE_URL}/repos/${repo}/commits`, {
     headers: getHeaders(token),
     params: {
+      sha: branch,
       path,
       per_page: '1',
       page: '1',

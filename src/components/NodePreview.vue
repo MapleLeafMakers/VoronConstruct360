@@ -139,19 +139,19 @@
 <script setup lang="ts">
 import { downloadBlobImageAsDataUri } from 'src/repodb';
 import { onMounted, ref, watch } from 'vue';
-import { RepoNode, ModelContentType, useCoreStore } from 'src/stores/core';
+import { BlobRepoNode, ModelContentType, useCoreStore } from 'src/stores/core';
 import PanelResizer from 'src/components/PanelResizer.vue';
 import NodePreviewTab from 'src/components/NodePreviewTab.vue';
-const props = defineProps<{ node: RepoNode; showManagementUI: boolean }>();
+const props = defineProps<{ node: BlobRepoNode; showManagementUI: boolean }>();
 const store = useCoreStore();
 const dataUrl = ref('');
 
 const tab = ref('step');
 
 const emit = defineEmits(['action:import', 'action:open', 'action:edit']);
-const setDataUrl = async (node: RepoNode) => {
+const setDataUrl = async (node: BlobRepoNode) => {
   if (node.meta?.thumb) {
-    dataUrl.value = node?.meta?.thumb;
+    dataUrl.value = node?.meta?.thumb as string;
   } else if (node.content_types?.thumb) {
     downloadBlobImageAsDataUri({
       url: node?.content_types?.thumb.url,
@@ -162,7 +162,7 @@ const setDataUrl = async (node: RepoNode) => {
   }
 };
 
-const setActiveTab = (node) => {
+const setActiveTab = (node: BlobRepoNode) => {
   if (
     node.content_types?.[tab.value as 'step' | 'f3d' | 'dxf' | 'svg'] ===
     undefined

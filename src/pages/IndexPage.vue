@@ -57,7 +57,7 @@
                   v-close-popup
                   @click="
                     () => {
-                      rpc.request('close', {});
+                      store.backend.close();
                     }
                   "
                 >
@@ -180,44 +180,43 @@
 
 <script lang="ts" setup>
 import { ref, watch, computed, h } from 'vue';
-import { useCoreStore, RepoNode } from 'src/stores/core';
+import { useCoreStore, RepoNode, BlobRepoNode } from 'src/stores/core';
 import { RepoTree } from 'src/components/tree';
 import { setCache } from 'src/repodb';
-import { useQuasar, uid, format } from 'quasar';
-const { humanStorageSize } = format;
+import { useQuasar, uid, QTree } from 'quasar';
 import NodePreview from 'src/components/NodePreview.vue';
 import SettingsDialog from 'src/components/SettingsDialog.vue';
 import CollectionEditor from 'src/components/CollectionEditor.vue';
 import ContentEditor from 'src/components/ContentEditor.vue';
 import AutoThumb from 'src/components/AutoThumb.vue';
-import rpc from 'src/rpc';
+import { ContentTypes, JsonSerializable } from 'src/backend';
 
 const $q = useQuasar();
 
 setCache({
   async clear() {
-    return await rpc.request('kv_mdel', { pattern: 'cache:%' });
+    return await store.backend.kv_mdel({ pattern: 'cache:%' });
   },
 
-  async get(key: string, defaultValue: any) {
-    let value = await rpc.request('kv_get', { key });
+  async get(key: string, defaultValue: JsonSerializable) {
+    let value = await store.backend.kv_get({ key });
     if (value === null) {
       value = defaultValue;
     }
     return value;
   },
 
-  async set(key: string, value: any) {
-    return await rpc.request('kv_set', { key, value });
+  async set(key: string, value: JsonSerializable) {
+    return await store.backend.kv_set({ key, value });
   },
 });
 
 const store = useCoreStore();
 store.loadState();
-const selected = ref([]);
-const expanded = ref([]);
-const treeRef = ref();
-const previouslyExpanded = ref([]);
+const selected = ref<string[]>([]);
+const expanded = ref<string[]>([]);
+const treeRef = ref<QTree>();
+const previouslyExpanded = ref<string[]>([]);
 
 const getNoNodesLabel = () => {
   const node = h('div', { class: 'row justify-center q-my-xl' }, [
@@ -229,7 +228,7 @@ const getNoNodesLabel = () => {
 
 const onExpand = (expandedNodes: string[]) => {
   expandedNodes
-    .map((n) => treeRef.value.getNodeByKey(n))
+    .map((n) => treeRef.value?.getNodeByKey(n))
     .forEach((n) => {
       if (n) {
         for (let child of n.children) {
@@ -243,7 +242,7 @@ const onExpand = (expandedNodes: string[]) => {
 
 const selectedNode = computed(() => {
   if (selected.value.length > 0) {
-    return treeRef.value.getNodeByKey(selected.value);
+    return treeRef.value?.getNodeByKey(selected.value);
   }
   return null;
 });
@@ -251,7 +250,7 @@ const selectedNode = computed(() => {
 watch(expanded, (curExpanded, prevExpanded) => {
   prevExpanded.forEach((n) => {
     if (curExpanded.indexOf(n) === -1) {
-      const node = treeRef.value.getNodeByKey(n);
+      const node = treeRef.value?.getNodeByKey(n);
       if (node.type === 'tree') {
         node.icon = 'mdi-folder';
       }
@@ -259,7 +258,7 @@ watch(expanded, (curExpanded, prevExpanded) => {
   });
   curExpanded.forEach((n) => {
     if (prevExpanded.indexOf(n) === -1) {
-      const node = treeRef.value.getNodeByKey(n);
+      const node = treeRef.value?.getNodeByKey(n);
       if (node.type === 'tree') {
         node.icon = 'mdi-folder';
       }
@@ -272,7 +271,7 @@ watch(
   (value, previousValue) => {
     if (value && !previousValue) {
       previouslyExpanded.value = [...expanded.value];
-      treeRef.value.expandAll();
+      treeRef.value?.expandAll();
     } else if (previousValue && !value) {
       expanded.value = [...previouslyExpanded.value];
     }
@@ -280,7 +279,7 @@ watch(
 );
 
 const reloadCollection = async ({ nodeId }: { nodeId: string }) => {
-  const repoNode = treeRef.value.getNodeByKey(nodeId);
+  const repoNode = treeRef.value?.getNodeByKey(nodeId);
   const idPrefix = repoNode.id;
   expanded.value = expanded.value.filter(
     (e) => e != idPrefix && !e.startsWith(idPrefix + '|')
@@ -326,19 +325,23 @@ const handleAutoThumb = () => {
 const treeFilter = (node: RepoNode, filter: string) => {
   const tokens = filter.toLowerCase().split(/\s+/);
   const matches = tokens.every((t: string) => {
-    return (
-      node?.path?.toLowerCase().indexOf(t) !== -1 ||
-      (node?.meta?.keywords?.toLowerCase() || '').indexOf(t) !== -1
-    );
+    if (node.path.toLowerCase().indexOf(t) !== -1) {
+      return true;
+    }
+    let keywords = (node as BlobRepoNode).meta.keywords as string;
+    if (!keywords) {
+      keywords = '';
+    }
+    return keywords.indexOf(t) !== -1;
   });
   return matches;
 };
 
 const onUpload = ({ nodeId }: { nodeId: string }) => {
-  const node = treeRef.value.getNodeByKey(nodeId);
+  const node = treeRef.value?.getNodeByKey(nodeId);
   let collection = node;
   if (node.type === 'tree') {
-    collection = treeRef.value.getNodeByKey(node.id.split('|')[0]);
+    collection = treeRef.value?.getNodeByKey(node.id.split('|')[0]);
   }
   $q.dialog({
     component: ContentEditor,
@@ -357,15 +360,15 @@ const onImportModel = ({
   nodeId: string;
   contentType?: 'step' | 'f3d' | 'dxf' | 'svg';
 }) => {
-  const node = treeRef.value.getNodeByKey(nodeId);
+  const node = treeRef.value?.getNodeByKey(nodeId);
   const cts = node.content_types;
   contentType =
     contentType ||
     (cts.f3d ? 'f3d' : cts.step ? 'step' : cts.dxf ? 'dxf' : cts.svg && 'svg');
-  rpc.request('import_model', {
+  store.backend.import_model({
     url: cts[contentType as string].url,
     token: store.token,
-    content_type: contentType,
+    content_type: contentType as ContentTypes,
   });
 };
 
@@ -374,22 +377,22 @@ const onOpenModel = ({
   contentType,
 }: {
   nodeId: string;
-  contentType?: 'f3d' | 'step' | 'dxf' | 'svg';
+  contentType?: ContentTypes;
 }) => {
-  const node = treeRef.value.getNodeByKey(nodeId);
+  const node = treeRef.value?.getNodeByKey(nodeId);
   const cts = node.content_types;
   contentType =
     contentType ||
     (cts.f3d ? 'f3d' : cts.step ? 'step' : cts.dxf ? 'dxf' : cts.svg && 'svg');
-  rpc.request('open_model', {
+  store.backend.open_model({
     url: cts[contentType as string].url,
     token: store.token,
-    content_type: contentType,
+    content_type: contentType as ContentTypes,
   });
 };
 
 const onEdit = ({ nodeId }: { nodeId: string }) => {
-  const node = treeRef.value.getNodeByKey(nodeId);
+  const node = treeRef.value?.getNodeByKey(nodeId);
   const component = node.type === 'repo' ? CollectionEditor : ContentEditor;
   $q.dialog({
     component: component,

@@ -11,7 +11,7 @@
   </div>
 </template>
 <script setup lang="ts">
-import { ref, watch, reactive } from 'vue';
+import { ref, watch } from 'vue';
 import { useMousePressed, useMouse, useWindowSize } from '@vueuse/core';
 import { useCoreStore } from 'src/stores/core';
 
