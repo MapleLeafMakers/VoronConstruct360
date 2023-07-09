@@ -180,7 +180,6 @@ const canMoveDown = computed(() => {
   const can =
     selectedRepoIndex.value > -1 &&
     selectedRepoIndex.value < (collection?.repositories || []).length - 1;
-  console.log('can move down?', can, selectedRepoIndex.value);
   return can;
 });
 
@@ -214,11 +213,9 @@ const handleDelete = () => {
     },
   }).onOk(() => {
     const idx = store.tree.findIndex((n) => {
-      console.log('checking', n.id, 'vs', collection.id, n.id == collection.id);
       return n.id == collection.id;
     });
     if (idx !== -1) {
-      console.log('Found match at idx');
       store.tree.splice(idx, 1);
       store.saveCollections();
       onDialogCancel();

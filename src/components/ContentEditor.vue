@@ -114,7 +114,6 @@
                       e.preventDefault();
                       e.stopPropagation();
                     }
-                    console.log(e);
                   }
                 "
               >
@@ -269,7 +268,6 @@ const onEditingComplete = (
     (n: PathTreeNode) => n.name === newFolderName
   );
   if (matches.length > 1) {
-    console.log('matches', matches);
     isValid = false;
   }
 
@@ -348,7 +346,6 @@ const onNewFolder = (event: Event) => {
   treeRef.value?.setExpanded(node.id, true);
   setTimeout(() => {
     const node = document.querySelector(`#pathTree--${pathToId(newNode.id)}`);
-    console.log('node', node);
     node?.scrollIntoView({ block: 'center' });
     node?.querySelector('input')?.focus();
   }, 500);
@@ -500,6 +497,18 @@ const { dialogRef, onDialogHide, onDialogOK, onDialogCancel } =
 function onOKClick() {
   busy.value = true;
   setTimeout(() => {
+    const repo = collection.repositories.filter(
+      (r) => r.repr === selectedRepo.value
+    )[0];
+
+    let path = repo.path || '';
+    if (path && selectedPath.value) {
+      path = `${path}/${selectedPath.value}`;
+    } else if (selectedPath.value) {
+      path = `${selectedPath.value}`;
+    }
+    path = path === '' ? `${name.value}` : `${path}/${name.value}`;
+
     store.backend
       .export_model({ f3d: uploadF3d.value, step: uploadStep.value })
       .then((modelData) => {
@@ -507,38 +516,36 @@ function onOKClick() {
         busy.value = false;
         if (uploadF3d.value) {
           files.push({
-            path: `${selectedPath.value}/${name.value}.f3d`,
+            path: `${path}.f3d`,
             content: modelData.f3d?.split(',')[1],
             encoding: 'base64',
           });
         }
         if (uploadStep.value) {
           files.push({
-            path: `${selectedPath.value}/${name.value}.step`,
+            path: `${path}.step`,
             content: modelData.step?.split(',')[1],
             encoding: 'base64',
           });
         }
         if (thumbnailChanged.value) {
           files.push({
-            path: `${selectedPath.value}/${name.value}.png`,
+            path: `${path}.png`,
             content: thumbnail.value.split(',')[1],
             encoding: 'base64',
           });
         }
-        const repo = collection.repositories.filter(
-          (r) => r.repr === selectedRepo.value
-        )[0];
+
         uploadFiles({
           repo: repo.repo,
           branch: repo.branch,
           files,
-          message: `Add ${selectedPath.value}`,
+          message: `Add ${path}`,
           token: store.token,
           progressCallback: null,
         }).then(() => {
           busy.value = false;
-          onDialogOK();
+          onDialogOK(collection);
         });
       });
   }, 500);

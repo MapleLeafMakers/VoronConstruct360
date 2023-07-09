@@ -343,12 +343,13 @@ const handleAutoThumb = () => {
 };
 
 const treeFilter = (node: RepoNode, filter: string) => {
+  if (node.type === 'repo') return false;
   const tokens = filter.toLowerCase().split(/\s+/);
   const matches = tokens.every((t: string) => {
     if (node.path.toLowerCase().indexOf(t) !== -1) {
       return true;
     }
-    let keywords = (node as BlobRepoNode).meta.keywords as string;
+    let keywords = (node as BlobRepoNode).meta?.keywords as string;
     if (!keywords) {
       keywords = '';
     }
@@ -363,6 +364,7 @@ const onUpload = ({ nodeId }: { nodeId: string }) => {
   if (node.type === 'tree') {
     collection = treeRef.value?.getNodeByKey(node.id.split('|')[0]);
   }
+
   $q.dialog({
     component: ContentEditor,
     componentProps: {
@@ -371,8 +373,11 @@ const onUpload = ({ nodeId }: { nodeId: string }) => {
         content_types: {},
       },
     },
+  }).onOk((updatedCollection) => {
+    reloadCollection({ nodeId: updatedCollection.id });
   });
 };
+
 const onImportModel = ({
   nodeId,
   contentType,
@@ -428,7 +433,7 @@ const onEdit = ({ nodeId }: { nodeId: string }) => {
     const b = JSON.stringify(node.repositories);
     if (a != b) {
       node.repositories = updatedCollection.repositories;
-      reloadCollection({ nodeId });
+      reloadCollection({ nodeId: updatedCollection.id });
     }
     store.saveCollections();
   });

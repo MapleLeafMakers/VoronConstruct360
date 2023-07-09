@@ -275,7 +275,9 @@ export function pruneTree(tree) {
   tree.forEach((n) => {
     if (n.type === 'tree') {
       n.children = pruneTree(n.children);
-      pruned.push(n);
+      if (n.children.length) {
+        pruned.push(n);
+      }
     } else {
       const ct = n.content_types;
       if (ct.step || ct.f3d || ct.dxf || ct.svg) {
@@ -509,6 +511,23 @@ export function getSubtree(tree, root) {
       throw Error('Invalid repository path');
     }
   });
+
+  function stripRoot(nodeList, root) {
+    const results = [];
+    for (let node of nodeList) {
+      const n = { ...node };
+      n.path = n.path.substring(root.length + 1);
+      let [collId, pathId] = n.id.split('|');
+      pathId = pathId.substring(root.length + 1);
+      n.id = `${collId}|${pathId}`;
+      if (n.type === tree) {
+        n.children = stripRoot(n.children, root);
+      }
+      results.push(n);
+    }
+    return results;
+  }
+  tree = stripRoot(tree, root);
   return tree;
 }
 
