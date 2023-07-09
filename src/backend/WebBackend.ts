@@ -4,6 +4,7 @@ import {
   JsonSerializable,
   KeysOrPattern,
 } from './types';
+import { downloadRawBlob } from 'src/repodb';
 
 function _escapeRegExp(s: string) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -88,17 +89,36 @@ export class WebBackend implements Backend {
   }): Promise<string> {
     throw new Error('Method not implemented.');
   }
-  open_model({}: {
+
+  async open_model({
+    url,
+    token,
+    content_type,
+    filename,
+  }: {
     url: string;
-    content_type: ContentTypes;
     token: string;
-  }): Promise<void> {
-    throw new Error('Method not implemented.');
+    content_type: ContentTypes;
+    filename?: string;
+  }) {
+    const blob = await downloadRawBlob({ url, token });
+    const blobUrl = URL.createObjectURL(blob);
+    if (!filename) {
+      filename = 'model';
+    }
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = `${filename}.${content_type}`;
+    a.setAttribute('target', '_blank');
+    a.click();
+    URL.revokeObjectURL(blobUrl);
   }
+
   import_model({}: {
     url: string;
-    content_type: ContentTypes;
     token: string;
+    content_type: ContentTypes;
+    filename?: string;
   }): Promise<void> {
     throw new Error('Method not implemented.');
   }

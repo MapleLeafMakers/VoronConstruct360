@@ -4,7 +4,9 @@ try:
 except ImportError:
     has_adsk = False
 
+import threading
 import contextlib
+import time
 import traceback
 import tempfile
 import json
@@ -12,23 +14,39 @@ import os
 import sys, pathlib
 import base64
 from contextlib import closing
+import queue
 import sqlite3
+
 path = str(pathlib.Path(__file__).parent.resolve() / 'lib')
 sys.path.insert(0, path)
 
 import jsonrpcserver, requests
 
-
-_db_file = str(pathlib.Path(__file__).parent.resolve() / 'cache.sqlite3')
-
 rpc = jsonrpcserver.Service()
 
+EVENT_ID = 'ConstructTimerEvent'
+stopFlag = None
+timerEvent = None
+timerQueue = queue.Queue()
+
+# Initialize Database
+_db_file = str(pathlib.Path(__file__).parent.resolve() / 'db.sqlite3')
+if not os.path.exists(_db_file):
+    # renamed to db.sqlite3 to emphasize that you shouldn't just delete it.
+    _old_db_file = str(pathlib.Path(__file__).parent.resolve() / 'cache.sqlite3')
+    if os.path.exists(_old_db_file):
+        os.rename(_old_db_file, _db_file)
+
 conn = sqlite3.connect(_db_file)
+
 conn.execute('''CREATE TABLE IF NOT EXISTS kv (
     key TEXT PRIMARY KEY,
     value TEXT
 );''')
 
+conn.execute('''CREATE TABLE IF NOT EXISTS kvaccess (key TEXT PRIMARY KEY, accesstime integer);''')
+
+access_times = dict()
 
 def _load_legacy_state():
     _legacy_save_file = str(pathlib.Path(__file__).parent.resolve() / '_save.json')
@@ -40,6 +58,22 @@ def _load_legacy_state():
             if 'repo_list' in state and state['repo_list']:
                 kv_set('collections', state['repo_list'])
         os.unlink(_legacy_save_file)
+
+
+class TimerThread(threading.Thread):
+    def __init__(self, event, q):
+        threading.Thread.__init__(self)
+        self.stopped = event
+        self.q = q
+
+    def run(self):
+        while not self.stopped.wait(0.5):
+            if self.q.qsize():
+                while self.q.qsize():
+                    self.q.get()
+
+            else:
+                _app.fireCustomEvent(EVENT_ID, 'ok')
 
 
 @contextlib.contextmanager
@@ -67,10 +101,30 @@ def get_version():
 
 @rpc.method
 def kv_get(key):
+    access_times[key] = int(time.time())
+    timerQueue.put(True)
     with closing(conn.execute('SELECT value FROM kv WHERE key = ?', (key,))) as cursor:
         val = cursor.fetchone()
         if val:
             return json.loads(val[0])
+
+
+@rpc.method
+def kv_mget(keys=None, pattern=None):
+
+    q = 'SELECT key, value FROM kv WHERE key IN ({})'.format(', '.join('?' * len(keys)))
+    args = list(keys)
+    if pattern:
+        args.append(pattern)
+        q += ' OR key LIKE ?'
+
+    with closing(conn.execute(q, keys)) as cursor:
+        result = dict()
+        for row in cursor.fetchall():
+            access_times[row[0]] = time.time()
+            result[row[0]] = json.loads(row[1])
+        timerQueue.put(True)
+        return result
 
 
 @rpc.method
@@ -89,16 +143,6 @@ def kv_set(key, value):
     conn.execute('INSERT OR REPLACE INTO kv (key, value) VALUES (?, ?)', (key, json.dumps(value)))
     conn.commit()
 
-
-@rpc.method
-def kv_mget(keys=None, pattern=None):
-
-    q = 'SELECT key, value FROM kv WHERE key IN ({})'.format(', '.join('?' * len(keys)))
-    with closing(conn.execute(q, keys)) as cursor:
-        result = dict()
-        for row in cursor.fetchall():
-            result[row[0]] = json.loads(row[1])
-        return result
 
 
 @rpc.method
@@ -225,6 +269,7 @@ def create_import_options(filename, ext):
 
 _load_legacy_state()
 
+
 if has_adsk:
 
     # global set of event handlers to keep them referenced for the duration of the command
@@ -232,6 +277,28 @@ if has_adsk:
     _app = adsk.core.Application.cast(None)
     _ui = adsk.core.UserInterface.cast(None)
     num = 0
+
+
+    class TimerThreadEventHandler(adsk.core.CustomEventHandler):
+        def __init__(self):
+            super().__init__()
+
+        def notify(self, args):
+            global access_times
+            if not access_times:
+                return
+            # global access_times
+            items = list(access_times.items())
+            with closing(conn.executemany('INSERT OR REPLACE INTO kvaccess (key, accesstime) VALUES (?, ?)', items)) as cursor:
+                conn.commit()
+                access_times = dict()
+
+            one_month_ago = time.time() - (86400 * 30)
+            with closing(conn.execute("DELETE FROM kv WHERE key LIKE 'cache:%' AND key NOT IN (SELECT key FROM kvaccess where accesstime > ?)", (one_month_ago,))) as cursor:
+                conn.commit()
+
+            with closing(conn.execute('DLETE FROM kvaccess WHERE accesstime <= ? OR key NOT IN (SELECT key FROM kv)', (one_month_ago,))) as cursor:
+                conn.commit()
 
 
     # Event handler for the commandExecuted event.
@@ -326,6 +393,7 @@ if has_adsk:
             navArgs.launchExternally = True
 
     def run(context):
+
         try:
             global _ui, _app
             _app = adsk.core.Application.get()
@@ -350,9 +418,23 @@ if has_adsk:
                 cntrl = panel.controls.addCommand(showPaletteCmdDef, )
                 cntrl.isPromoted = True
 
+            global timerEvent;
+            timerEvent = _app.registerCustomEvent(EVENT_ID)
+            onThreadEvent = TimerThreadEventHandler()
+            timerEvent.add(onThreadEvent)
+            handlers.append(onThreadEvent)
+
+            # Create a new thread for the other processing.
+            global stopFlag
+            global timerQueue
+            stopFlag = threading.Event()
+            myThread = TimerThread(stopFlag, timerQueue)
+            myThread.start()
         except:
             if _ui:
                 _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
+
+
 
 
     def stop(context):
@@ -372,6 +454,9 @@ if has_adsk:
                 cmd = panel.controls.itemById('openVoronConstruct')
                 if cmd:
                     cmd.deleteMe()
+
+            stopFlag.set()
+
         except:
             if _ui:
                 _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))

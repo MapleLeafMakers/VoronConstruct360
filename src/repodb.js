@@ -178,13 +178,18 @@ export async function getRepository({ repo, token }) {
 export async function downloadBlob({ url, token }) {
   let cached = await _cache.get(`cache:blob:${url}`, null);
   if (cached === null) {
-    console.log('Downloading blob', url);
     const response = await axios.get(url, { headers: getHeaders(token) });
     cached = response.data;
-    console.log(response.data);
     await _cache.set(`cache:blob:${url}`, cached);
   }
   return cached;
+}
+
+export async function downloadRawBlob({ url, token }) {
+  const response = await axios.get(url, {
+    headers: getHeaders(token, { Accept: 'application/vnd.github.raw' }),
+  });
+  return new Blob([response.data]);
 }
 
 export async function downloadBlobJson({ url, token }) {

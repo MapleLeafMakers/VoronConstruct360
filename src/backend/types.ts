@@ -12,6 +12,15 @@ declare global {
     fusionJavaScriptHandler: {
       handle: (action: string, data: string) => string;
     };
+    showDirectoryPicker?: ({
+      id,
+      mode,
+      startIn,
+    }: {
+      id: string;
+      mode: string;
+      startIn?: FileSystemHandle | string;
+    }) => Promise<FileSystemDirectoryHandle>;
   }
 }
 

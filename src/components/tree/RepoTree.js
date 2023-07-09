@@ -87,6 +87,7 @@ export default markRaw(
 
       showThumbnails: Boolean,
       showManagementUI: Boolean,
+      isFusionBackend: Boolean,
     },
 
     emits: [
@@ -99,6 +100,7 @@ export default markRaw(
       'action:import',
       'action:open',
       'action:upload',
+      'action:folder-download',
     ],
 
     setup(props, { slots, emit }) {
@@ -568,18 +570,38 @@ export default markRaw(
       function getNodeActions(node) {
         const actions = [];
         if (node.type === 'blob') {
-          actions.push(
-            getActionButton('action:import', node.id, 'Import', 'mdi-import')
-          );
-          actions.push(
-            getActionButton('action:open', node.id, 'Open', 'mdi-open-in-new')
-          );
+          if (props.isFusionBackend) {
+            actions.push(
+              getActionButton('action:import', node.id, 'Import', 'mdi-import')
+            );
+            actions.push(
+              getActionButton('action:open', node.id, 'Open', 'mdi-open-in-new')
+            );
+          } else {
+            actions.push(
+              getActionButton(
+                'action:open',
+                node.id,
+                'Download',
+                'mdi-download'
+              )
+            );
+          }
         } else if (node.type === 'repo') {
           actions.push(
             getActionButton('action:edit', node.id, 'Edit', 'mdi-pencil')
           );
           actions.push(
             getActionButton('action:reload', node.id, 'Reload', 'mdi-reload')
+          );
+        } else if (node.type == 'tree' && !props.isFusionBackend) {
+          actions.push(
+            getActionButton(
+              'action:folder-download',
+              node.id,
+              'Download',
+              'mdi-folder-download'
+            )
           );
         }
         if (node.type === 'repo' || node.type === 'tree') {

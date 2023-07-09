@@ -118,8 +118,10 @@
         @action:reload="reloadCollection"
         @action:edit="onEdit"
         @action:upload="onUpload"
+        @action:folder-download="onDownloadFolder"
         style="flex: 1"
         :show-thumbnails="store.preferences.showThumbnails"
+        :is-fusion-backend="store.backend.isFusion360"
       >
         <template v-slot:default-header="prop">
           <div class="row">
@@ -207,6 +209,7 @@ import CollectionEditor from 'src/components/CollectionEditor.vue';
 import ContentEditor from 'src/components/ContentEditor.vue';
 import AutoThumb from 'src/components/AutoThumb.vue';
 import { ContentTypes, JsonSerializable } from 'src/backend';
+import FolderDownloader from 'src/components/FolderDownloader.vue';
 
 const $q = useQuasar();
 
@@ -215,8 +218,8 @@ setCache({
     return await store.backend.kv_mdel({ pattern: 'cache:%' });
   },
 
-  async get(key: string, defaultValue: JsonSerializable) {
-    let value = await store.backend.kv_get({ key });
+  async get(key: string, defaultValue: JsonSerializable = null) {
+    let value = await store.backend.kv_get({ key, or: defaultValue });
     if (value === null) {
       value = defaultValue;
     }
@@ -428,6 +431,17 @@ const onEdit = ({ nodeId }: { nodeId: string }) => {
       reloadCollection({ nodeId });
     }
     store.saveCollections();
+  });
+};
+
+const onDownloadFolder = async ({ nodeId }: { nodeId: string }) => {
+  const node = treeRef.value?.getNodeByKey(nodeId);
+  $q.dialog({
+    component: FolderDownloader,
+    componentProps: {
+      node,
+    },
+    persistent: true,
   });
 };
 

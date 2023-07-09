@@ -53,39 +53,60 @@
             :label="`.${ct.toUpperCase()}`"
           />
           <q-space />
-          <q-btn
-            icon="mdi-import"
-            size="sm"
-            dense
-            rounded
-            unelevated
-            label="Import"
-            class="q-pr-sm q-mr-sm"
-            @click="
-              (e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                emit('action:import', { nodeId: node.id, contentType: tab });
-              }
-            "
-          />
-          <q-btn
-            v-if="node.content_types?.step || node.content_types?.f3d"
-            icon="mdi-open-in-new"
-            size="sm"
-            dense
-            rounded
-            unelevated
-            label="Open"
-            class="q-pr-sm q-mr-sm"
-            @click="
-              (e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                emit('action:open', { nodeId: node.id, contentType: tab });
-              }
-            "
-          />
+          <template v-if="store.backend.isFusion360">
+            <q-btn
+              icon="mdi-import"
+              size="sm"
+              dense
+              rounded
+              unelevated
+              label="Import"
+              class="q-pr-sm q-mr-sm"
+              @click="
+                (e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  emit('action:import', { nodeId: node.id, contentType: tab });
+                }
+              "
+            />
+            <q-btn
+              v-if="node.content_types?.step || node.content_types?.f3d"
+              icon="mdi-open-in-new"
+              size="sm"
+              dense
+              rounded
+              unelevated
+              label="Open"
+              class="q-pr-sm q-mr-sm"
+              @click="
+                (e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  emit('action:open', { nodeId: node.id, contentType: tab });
+                }
+              "
+            />
+          </template>
+          <template v-else>
+            <q-btn
+              v-if="node.content_types?.step || node.content_types?.f3d"
+              icon="mdi-download"
+              size="sm"
+              dense
+              rounded
+              unelevated
+              label="Download"
+              class="q-pr-sm q-mr-sm"
+              @click="
+                (e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  emit('action:open', { nodeId: node.id, contentType: tab });
+                }
+              "
+            />
+          </template>
           <q-btn
             v-if="
               props.showManagementUI &&
@@ -137,6 +158,7 @@ import { onMounted, ref, watch } from 'vue';
 import { BlobRepoNode, ModelContentType, useCoreStore } from 'src/stores/core';
 import PanelResizer from 'src/components/PanelResizer.vue';
 import NodePreviewTab from 'src/components/NodePreviewTab.vue';
+import { WebBackend } from 'src/backend/WebBackend';
 const props = defineProps<{ node: BlobRepoNode; showManagementUI: boolean }>();
 const store = useCoreStore();
 const dataUrl = ref('');
