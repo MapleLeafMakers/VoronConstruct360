@@ -9,7 +9,7 @@ import rpc from './rpc';
 export class FusionBackend implements Backend {
   isFusion360: boolean;
   version: number;
-  latestVersion = 2;
+  latestVersion = 3;
   updateUrl = 'https://github.com/MapleLeafMakers/VoronConstruct360/releases';
 
   constructor() {

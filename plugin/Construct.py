@@ -96,7 +96,7 @@ def download(apiUrl, token, filename=None, extension=''):
 
 @rpc.method
 def get_version():
-    return 2
+    return 3
 
 
 @rpc.method
