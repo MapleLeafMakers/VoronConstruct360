@@ -252,7 +252,10 @@ const onExpand = (expandedNodes: string[]) => {
     .forEach((n) => {
       if (n) {
         for (let child of n.children) {
-          if (child?.content_types?.thumb && !child?.img) {
+          if (
+            (child?.content_types?.thumb || child?.content_types?.svg) &&
+            !child?.img
+          ) {
             store.setNodeThumbnail(child);
           }
         }
@@ -322,13 +325,13 @@ const handleAddRepository = () => {
     store.tree.push({
       ...newCollection,
       id,
-      type: 'repo',
       icon: 'mdi-github',
       selectable: false,
       children: [],
     });
-    store.saveCollections();
-    reloadCollection({ nodeId: id });
+    reloadCollection({ nodeId: id }).then(() => {
+      store.saveCollections();
+    });
   });
 };
 
@@ -343,7 +346,7 @@ const handleAutoThumb = () => {
 };
 
 const treeFilter = (node: RepoNode, filter: string) => {
-  if (node.type === 'repo') return false;
+  if (node.type === 'repo' || node.type === 'org') return false;
   const tokens = filter.toLowerCase().split(/\s+/);
   const matches = tokens.every((t: string) => {
     if (node.path.toLowerCase().indexOf(t) !== -1) {
@@ -421,7 +424,10 @@ const onOpenModel = ({
 
 const onEdit = ({ nodeId }: { nodeId: string }) => {
   const node = treeRef.value?.getNodeByKey(nodeId);
-  const component = node.type === 'repo' ? CollectionEditor : ContentEditor;
+  const component =
+    node.type === 'repo' || node.type === 'org'
+      ? CollectionEditor
+      : ContentEditor;
   $q.dialog({
     component: component,
     componentProps: {

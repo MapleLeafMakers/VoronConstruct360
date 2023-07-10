@@ -201,9 +201,29 @@ export async function downloadBlobJson({ url, token }) {
   return JSON.parse(content);
 }
 
-export async function downloadBlobImageAsDataUri({ url, token }) {
+export async function downloadBlobImageAsDataUri({ url, token, content_type }) {
   const blob = await downloadBlob({ url, token });
-  return `data:image/png;base64,${blob.content}`;
+  if (blob.encoding != 'base64') {
+    blob.content = btoa(blob.content);
+  }
+  return `data:${content_type};base64,${blob.content}`;
+}
+
+export async function getOrgOrUserRepos({ org, token }) {
+  const resp = await axios.get(
+    `${BASE_URL}/users/${org}/repos`,
+    getHeaders(token)
+  );
+  return resp.data.map((r) => ({
+    name: r.name,
+    icon: 'mdi-github',
+    expandable: true,
+    type: 'repo',
+    repositories: [
+      { repo: r.full_name, repr: r.full_name, branch: r.default_branch },
+    ],
+    children: [],
+  }));
 }
 
 export async function getBranch({ repo, branch, token }) {
@@ -211,17 +231,13 @@ export async function getBranch({ repo, branch, token }) {
     const repoInfo = await getRepository({ repo, token });
     branch = repoInfo.default_branch;
   }
-  try {
-    const now = new Date();
-    now.setSeconds(now.getSeconds() - 30);
-    return (
-      await axios.get(`${BASE_URL}/repos/${repo}/branches/${branch}`, {
-        headers: getHeaders(token, { 'If-Modified-Since': now.toUTCString() }),
-      })
-    ).data;
-  } catch (err) {
-    errorHandler(err);
-  }
+  const now = new Date();
+  now.setSeconds(now.getSeconds() - 30);
+  return (
+    await axios.get(`${BASE_URL}/repos/${repo}/branches/${branch}`, {
+      headers: getHeaders(token, { 'If-Modified-Since': now.toUTCString() }),
+    })
+  ).data;
 }
 
 export function fileFolderSort(a, b) {
@@ -366,7 +382,11 @@ export async function indexTree({ tree, token, treeShas, perNodeFunc }) {
     if (cachedDirMeta) {
       meta = cachedDirMeta[n.name] || {};
     } else if (n.content_types.meta) {
-      meta = await downloadBlobJson({ url: n.content_types.meta.url, token });
+      try {
+        meta = await downloadBlobJson({ url: n.content_types.meta.url, token });
+      } catch (err) {
+        meta = {};
+      }
     }
     results.push({ ...n, meta });
   }
@@ -470,7 +490,17 @@ export async function getLatestCommitForPath({ repo, branch, path, token }) {
 
 export async function getRepoTree({ repo, branch, token, id_prefix, noCache }) {
   noCache = !!noCache;
-  branch = await getBranch({ repo, branch, token });
+  try {
+    branch = await getBranch({ repo, branch, token });
+  } catch (err) {
+    if (err?.response?.data?.message === 'Branch not found') {
+      // Empty repository, doesn't have a branch or a tree... uhhh...
+      return [[], null];
+    } else {
+      throw err;
+    }
+  }
+
   let cachedTree = noCache
     ? null
     : await _cache.get(`cache:tree:${repo}:${branch.name}`);
@@ -581,6 +611,7 @@ export async function getMergedTrees({
         id_prefix,
         noCache,
       });
+      console.log('NewTree', newTree);
       treeShas.push(newTreeSha);
       if (path) {
         newTree = getSubtree(newTree, path);

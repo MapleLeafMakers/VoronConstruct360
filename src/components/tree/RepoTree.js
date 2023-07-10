@@ -98,6 +98,7 @@ export default markRaw(
       'afterShow',
       'afterHide',
       'action:import',
+      'action:reload',
       'action:open',
       'action:upload',
       'action:folder-download',
@@ -587,7 +588,7 @@ export default markRaw(
               )
             );
           }
-        } else if (node.type === 'repo') {
+        } else if (node.type === 'repo' || node.type == 'org') {
           actions.push(
             getActionButton('action:edit', node.id, 'Edit', 'mdi-pencil')
           );

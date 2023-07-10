@@ -173,6 +173,13 @@ const setDataUrl = async (node: BlobRepoNode) => {
     downloadBlobImageAsDataUri({
       url: node?.content_types?.thumb.url,
       token: store.token,
+      content_type: 'image/png',
+    }).then((val) => (dataUrl.value = val));
+  } else if (node?.content_types?.svg?.url) {
+    downloadBlobImageAsDataUri({
+      url: node?.content_types?.svg.url,
+      token: store.token,
+      content_type: 'image/svg+xml',
     }).then((val) => (dataUrl.value = val));
   } else {
     dataUrl.value = '';

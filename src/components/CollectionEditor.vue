@@ -15,12 +15,14 @@
           <div style="display: flex; flex-direction: column; flex: 1">
             <div class="row q-mb-xs">
               <input
+                :disabled="collection.type === 'org'"
                 v-model="addingRepo"
                 bg-color="white"
                 :style="{ flex: 1 }"
                 @keypress.enter="onAdd"
               />
               <q-btn
+                :disable="collection.type === 'org'"
                 class="bordered"
                 style="border-left: none"
                 unelevated
@@ -30,9 +32,10 @@
               />
             </div>
             <select
+              :disabled="collection.type === 'org'"
               v-model="selectedRepo"
               size="4"
-              :style="{ flex: 1 }"
+              :style="{ flex: 1, overflowY: 'auto' }"
               class="q-mb-xs"
             >
               <option
@@ -114,7 +117,7 @@
 
 <script setup>
 import { useQuasar, useDialogPluginComponent } from 'quasar';
-import { cleanRepoString } from 'src/repodb';
+import { cleanRepoString, getOrgOrUserRepos } from 'src/repodb';
 import { computed, reactive, ref, watch } from 'vue';
 import { useCoreStore } from 'src/stores/core';
 const $q = useQuasar();
@@ -128,6 +131,10 @@ const props = defineProps({
 const collection = reactive(
   JSON.parse(JSON.stringify(props.initialValue || {}))
 );
+
+if (!collection.type) {
+  collection.type = 'repo';
+}
 
 const onMoveUp = async () => {
   const prevIdx = selectedRepoIndex.value - 1;
@@ -149,17 +156,31 @@ const onMoveDown = async () => {
 
 const onAdd = async () => {
   let repo;
-  try {
-    repo = await cleanRepoString({
-      input: addingRepo.value,
-      token: store.token,
-    });
-  } catch (err) {
-    alert(err);
-    return;
+  if (addingRepo.value.match(/[\w-]+\/\*/)) {
+    const repos = (
+      await getOrgOrUserRepos({
+        org: addingRepo.value.split('/')[0],
+        token: store.token,
+      })
+    ).map((r) => r.repositories[0]);
+    collection.repositories = [...repos];
+    collection.org = addingRepo.value.split('/')[0];
+    collection.type = 'org';
+    addingRepo.value = '';
+  } else {
+    try {
+      repo = await cleanRepoString({
+        input: addingRepo.value,
+        token: store.token,
+      });
+    } catch (err) {
+      alert(err);
+      return;
+    }
+
+    collection.repositories = [...(collection.repositories || []), repo];
+    addingRepo.value = '';
   }
-  collection.repositories = [...(collection.repositories || []), repo];
-  addingRepo.value = '';
 };
 
 const selectedRepoIndex = computed(() => {
@@ -224,12 +245,7 @@ const handleDelete = () => {
     }
   });
 };
-watch(
-  () => selectedRepo.value,
-  (newVal, oldVal) => {
-    console.log(oldVal, '->', newVal);
-  }
-);
+
 defineEmits([
   // REQUIRED; need to specify some events that your
   // component will emit through useDialogPluginComponent()

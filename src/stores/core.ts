@@ -1,7 +1,12 @@
 import { defineStore } from 'pinia';
-import { downloadBlobImageAsDataUri, getMergedTrees } from '../repodb.js';
-import { reactive } from 'vue';
+import {
+  downloadBlobImageAsDataUri,
+  getMergedTrees,
+  getOrgOrUserRepos,
+} from '../repodb.js';
+import { onMounted, reactive } from 'vue';
 import { initBackend, Backend, JsonSerializable } from '../backend';
+import { uid } from 'quasar';
 
 export interface ModelContentType {
   path: string;
@@ -23,7 +28,7 @@ export interface RepoNode {
   children?: RepoNode[];
   id: string;
   name: string;
-  type: 'blob' | 'tree' | 'repo';
+  type: 'blob' | 'tree' | 'repo' | 'org';
   path: string;
   icon?: string;
   img?: string;
@@ -32,10 +37,14 @@ export interface RepoNode {
   expandable: boolean;
 }
 
+export interface OrgRepoNode extends CollectionRepoNode {
+  org: string;
+}
+
 export interface CollectionRepoNode extends RepoNode {
+  uploadTo?: string;
   repositories: Repository[];
   lazy?: string | boolean;
-  uploadTo?: string;
 }
 
 export interface BlobRepoNode extends RepoNode {
@@ -59,7 +68,7 @@ export interface Preferences {
 
 export function setNodeProps(tree: RepoNode[]) {
   for (const node of tree) {
-    if (node.type === 'repo') {
+    if (node.type === 'repo' || node.type === 'org') {
       node.icon = 'mdi-github';
     } else if (node.type === 'tree') {
       node.icon = 'mdi-folder';
@@ -67,7 +76,8 @@ export function setNodeProps(tree: RepoNode[]) {
       node.icon = 'mdi-cube-outline';
     }
     node.selectable = node.type === 'blob';
-    node.expandable = node.type === 'repo' || node.type === 'tree';
+    node.expandable =
+      node.type === 'repo' || node.type === 'tree' || node.type === 'org';
     if (node.children) {
       setNodeProps(node.children);
     }
@@ -95,6 +105,7 @@ export const useCoreStore = defineStore('core', {
     getTopLevelNode(id: string) {
       return this.tree.filter((n) => n.id === id)[0];
     },
+
     async loadState() {
       this.backend = await initBackend();
       const { token, collections, preferences } = await this.backend.kv_mget({
@@ -104,6 +115,7 @@ export const useCoreStore = defineStore('core', {
       if (token) {
         this.token = token as string;
       }
+
       if (collections) {
         const repoCollections = collections as unknown as CollectionRepoNode[];
         for (const c of repoCollections) {
@@ -124,7 +136,15 @@ export const useCoreStore = defineStore('core', {
           }
         }
         this.tree = reactive(repoCollections);
-        this.tree.forEach((n) => this.reloadCollection({ nodeId: n.id }));
+        for (const n of this.tree) {
+          if (n.type === 'repo') {
+            this.reloadCollection({ nodeId: n.id });
+          } else if (n.type === 'org') {
+            for (const r of n.children || []) {
+              this.reloadCollection({ nodeId: r.id });
+            }
+          }
+        }
       }
       if (preferences) {
         Object.assign(this.preferences, preferences);
@@ -145,7 +165,9 @@ export const useCoreStore = defineStore('core', {
           (n: CollectionRepoNode) =>
             ({
               ...n,
-              children: [],
+              children: (n.children || [])
+                .filter((c) => c.type === 'repo')
+                .map((c) => ({ ...c, children: [] })),
             } as CollectionRepoNode)
         ),
       });
@@ -158,28 +180,82 @@ export const useCoreStore = defineStore('core', {
       });
     },
 
-    async reloadCollection({ nodeId }: { nodeId: string }) {
-      const node = this.tree.filter(
-        (n: CollectionRepoNode) => n.id === nodeId
-      )[0];
+    async reloadCollection({
+      nodeId,
+      startup,
+    }: {
+      nodeId: string;
+      startup?: boolean;
+    }) {
+      if (startup === undefined) {
+        startup = false;
+      }
+
+      let node;
+      for (const root of this.tree) {
+        if (root.type === 'org') {
+          const idx = (root.children || []).findIndex((c) => c.id === nodeId);
+          if (idx !== -1) {
+            node = (root.children as [])[idx];
+            break;
+          }
+        }
+        if (root.id === nodeId) {
+          node = root;
+          break;
+        }
+      }
+      if (!node) {
+        throw new Error('Node not found');
+      }
+      console.log('reloading collection', node);
       node.lazy = 'loading';
-      const tree = await getMergedTrees({
-        repositories: node?.repositories.map((r) => r.repr),
-        token: this.token,
-        index: true,
-        id_prefix: node.id,
-        noCache: false,
-        setLoadingMessage: console.log,
-      });
-      node.lazy = false;
-      setNodeProps(tree);
-      node.children = reactive(tree);
+      let tree;
+      if (node.type === 'repo') {
+        tree = await getMergedTrees({
+          repositories: node?.repositories.map((r) => r.repr),
+          token: this.token,
+          index: true,
+          id_prefix: node.id,
+          noCache: false,
+          setLoadingMessage: () => null,
+        });
+        node.lazy = false;
+        setNodeProps(tree);
+        node.children = reactive(tree);
+      } else if (node.type === 'org') {
+        tree = (
+          await getOrgOrUserRepos({
+            org: (node as OrgRepoNode).org,
+            token: this.token,
+          })
+        ).map((o) => ({ ...o, id: uid() }));
+        console.log('is org', tree);
+        for (const orgRepo of tree) {
+          orgRepo.children = await getMergedTrees({
+            repositories: orgRepo.repositories.map((r) => r.repr),
+            token: this.token,
+            id_prefix: orgRepo.id,
+            noCache: false,
+            index: true,
+            setLoadingMessage: () => null,
+          });
+        }
+        tree = tree.filter((c) => c.children?.length > 0);
+        node.lazy = false;
+        setNodeProps(tree);
+        node.children = reactive(tree);
+        await this.saveCollections();
+      }
     },
 
     async setNodeThumbnail(node: BlobRepoNode) {
       const dataUrl = await downloadBlobImageAsDataUri({
-        url: node?.content_types?.thumb?.url,
+        url: node?.content_types?.thumb?.url || node?.content_types?.svg?.url,
         token: this.token,
+        content_type: node?.content_types?.thumb
+          ? 'image/png'
+          : 'image/svg+xml',
       });
       node.img = dataUrl;
     },

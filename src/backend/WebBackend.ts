@@ -44,12 +44,24 @@ export class WebBackend implements Backend {
   }
 
   async kv_set({ key, value }: { key: string; value: JsonSerializable }) {
-    localStorage.setItem(key, JSON.stringify(value));
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch (err) {
+      if (!key.startsWith('cache:')) {
+        throw err;
+      }
+    }
   }
 
   async kv_mset(values: { [key: string]: JsonSerializable }) {
     for (const [k, v] of Object.entries(values)) {
-      localStorage.setItem(k, JSON.stringify(v));
+      try {
+        localStorage.setItem(k, JSON.stringify(v));
+      } catch (err) {
+        if (!k.startsWith('cache:')) {
+          throw err;
+        }
+      }
     }
   }
 
