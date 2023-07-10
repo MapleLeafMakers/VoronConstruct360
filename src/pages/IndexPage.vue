@@ -199,9 +199,9 @@
 
 <script lang="ts" setup>
 import { ref, watch, computed, h } from 'vue';
-import { useCoreStore, RepoNode, BlobRepoNode } from 'src/stores/core';
+import { useCoreStore } from 'src/stores/core';
 import { RepoTree } from 'src/components/tree';
-import { setCache } from 'src/repodb';
+import { setCache, RepoNode, BlobRepoNode } from 'src/repodb';
 import { useQuasar, uid, QTree } from 'quasar';
 import NodePreview from 'src/components/NodePreview.vue';
 import SettingsDialog from 'src/components/SettingsDialog.vue';

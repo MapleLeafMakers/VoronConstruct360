@@ -1,63 +1,18 @@
 import { defineStore } from 'pinia';
 import {
+  RepoNode,
+  OrgRepoNode,
+  CollectionRepoNode,
+  BlobRepoNode,
+  Repository,
   downloadBlobImageAsDataUri,
   getMergedTrees,
   getOrgOrUserRepos,
-} from '../repodb.js';
-import { onMounted, reactive } from 'vue';
-import { initBackend, Backend, JsonSerializable } from '../backend';
+} from '../repodb';
+
+import { reactive } from 'vue';
+import { initBackend, Backend } from '../backend';
 import { uid } from 'quasar';
-
-export interface ModelContentType {
-  path: string;
-  url: string;
-  sha: string;
-  size: number;
-  repo: string;
-  branch: string;
-}
-
-export interface Repository {
-  repo: string;
-  branch?: string;
-  repr: string;
-  path: string;
-}
-
-export interface RepoNode {
-  children?: RepoNode[];
-  id: string;
-  name: string;
-  type: 'blob' | 'tree' | 'repo' | 'org';
-  path: string;
-  icon?: string;
-  img?: string;
-
-  selectable: boolean;
-  expandable: boolean;
-}
-
-export interface OrgRepoNode extends CollectionRepoNode {
-  org: string;
-}
-
-export interface CollectionRepoNode extends RepoNode {
-  uploadTo?: string;
-  repositories: Repository[];
-  lazy?: string | boolean;
-}
-
-export interface BlobRepoNode extends RepoNode {
-  meta: { [key: string]: JsonSerializable };
-  content_types?: {
-    f3d?: ModelContentType;
-    step?: ModelContentType;
-    dxf?: ModelContentType;
-    svg?: ModelContentType;
-    meta?: ModelContentType;
-    thumb?: ModelContentType;
-  };
-}
 
 export interface Preferences {
   showThumbnails: boolean;
@@ -68,8 +23,10 @@ export interface Preferences {
 
 export function setNodeProps(tree: RepoNode[]) {
   for (const node of tree) {
-    if (node.type === 'repo' || node.type === 'org') {
+    if (node.type === 'repo') {
       node.icon = 'mdi-github';
+    } else if (node.type === 'org') {
+      node.icon = 'mdi-domain';
     } else if (node.type === 'tree') {
       node.icon = 'mdi-folder';
     } else if (node.type === 'blob') {
@@ -103,7 +60,17 @@ export const useCoreStore = defineStore('core', {
 
   actions: {
     getTopLevelNode(id: string) {
-      return this.tree.filter((n) => n.id === id)[0];
+      for (const n of this.tree) {
+        if (n.id === id) {
+          return n;
+        }
+        if (n.type === 'org') {
+          const orgMatches = n.children?.filter((n) => n.id === id);
+          if (orgMatches) {
+            return orgMatches[0];
+          }
+        }
+      }
     },
 
     async loadState() {
@@ -120,7 +87,7 @@ export const useCoreStore = defineStore('core', {
         const repoCollections = collections as unknown as CollectionRepoNode[];
         for (const c of repoCollections) {
           c.selectable = false;
-          c.icon = 'mdi-github';
+          c.icon = c.type === 'repo' ? 'mdi-github' : 'mdi-domain';
           if (Array.isArray(c.repositories) && c.repositories.length > 0) {
             c.repositories = c.repositories.map((r: string | Repository) => {
               if (typeof r === 'string') {
@@ -217,7 +184,6 @@ export const useCoreStore = defineStore('core', {
           token: this.token,
           index: true,
           id_prefix: node.id,
-          noCache: false,
           setLoadingMessage: () => null,
         });
         node.lazy = false;
@@ -233,15 +199,14 @@ export const useCoreStore = defineStore('core', {
         console.log('is org', tree);
         for (const orgRepo of tree) {
           orgRepo.children = await getMergedTrees({
-            repositories: orgRepo.repositories.map((r) => r.repr),
+            repositories: orgRepo.repositories.map((r: Repository) => r.repr),
             token: this.token,
             id_prefix: orgRepo.id,
-            noCache: false,
             index: true,
             setLoadingMessage: () => null,
           });
         }
-        tree = tree.filter((c) => c.children?.length > 0);
+        tree = tree.filter((c: RepoNode) => (c.children?.length || 0) > 0);
         node.lazy = false;
         setNodeProps(tree);
         node.children = reactive(tree);
@@ -251,7 +216,8 @@ export const useCoreStore = defineStore('core', {
 
     async setNodeThumbnail(node: BlobRepoNode) {
       const dataUrl = await downloadBlobImageAsDataUri({
-        url: node?.content_types?.thumb?.url || node?.content_types?.svg?.url,
+        url: (node?.content_types?.thumb?.url ||
+          node?.content_types?.svg?.url) as string,
         token: this.token,
         content_type: node?.content_types?.thumb
           ? 'image/png'

@@ -20,10 +20,10 @@
   </div>
 </template>
 <script setup lang="ts">
-import { ModelContentType, useCoreStore } from 'src/stores/core';
+import { useCoreStore } from 'src/stores/core';
 import { format } from 'quasar';
 import { onMounted, ref, watch } from 'vue';
-import { getLatestCommitForPath } from 'src/repodb';
+import { ModelContentType, getLatestCommitForPath } from 'src/repodb';
 const { humanStorageSize } = format;
 
 const store = useCoreStore();

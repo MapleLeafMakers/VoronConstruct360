@@ -160,13 +160,14 @@
 </template>
 
 <script setup lang="ts">
+import { useCoreStore } from 'src/stores/core';
 import {
   BlobRepoNode,
   CollectionRepoNode,
   RepoNode,
   Repository,
-  useCoreStore,
-} from 'src/stores/core';
+} from 'src/repodb';
+
 import { format, useDialogPluginComponent } from 'quasar';
 const { humanStorageSize } = format;
 

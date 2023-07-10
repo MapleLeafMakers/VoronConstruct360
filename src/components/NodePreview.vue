@@ -153,12 +153,16 @@
   </div>
 </template>
 <script setup lang="ts">
-import { downloadBlobImageAsDataUri } from 'src/repodb';
+import {
+  BlobRepoNode,
+  ModelContentType,
+  downloadBlobImageAsDataUri,
+} from 'src/repodb';
 import { onMounted, ref, watch } from 'vue';
-import { BlobRepoNode, ModelContentType, useCoreStore } from 'src/stores/core';
+import { useCoreStore } from 'src/stores/core';
 import PanelResizer from 'src/components/PanelResizer.vue';
 import NodePreviewTab from 'src/components/NodePreviewTab.vue';
-import { WebBackend } from 'src/backend/WebBackend';
+
 const props = defineProps<{ node: BlobRepoNode; showManagementUI: boolean }>();
 const store = useCoreStore();
 const dataUrl = ref('');

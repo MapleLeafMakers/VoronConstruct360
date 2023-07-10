@@ -214,14 +214,15 @@
 
 <script setup lang="ts">
 import { QTree, uid, useDialogPluginComponent } from 'quasar';
-import { downloadBlobImageAsDataUri, uploadFiles } from 'src/repodb';
 import {
   RepoNode,
   ModelContentType,
-  useCoreStore,
   CollectionRepoNode,
   BlobRepoNode,
-} from 'src/stores/core';
+  downloadBlobImageAsDataUri,
+  uploadFiles,
+} from 'src/repodb';
+import { useCoreStore } from 'src/stores/core';
 import { onMounted, ref, computed, reactive } from 'vue';
 const bgTransparency = ref(false);
 const filePicker = ref<HTMLInputElement | null>(null);
@@ -453,6 +454,7 @@ const loadThumbnail = async () => {
     thumbnail.value = await downloadBlobImageAsDataUri({
       url: blobUrl,
       token: store.token,
+      content_type: 'image/png',
     });
   } else {
     thumbnail.value = '';
@@ -542,7 +544,6 @@ function onOKClick() {
           files,
           message: `Add ${path}`,
           token: store.token,
-          progressCallback: null,
         }).then(() => {
           busy.value = false;
           onDialogOK(collection);

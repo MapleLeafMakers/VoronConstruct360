@@ -6,6 +6,7 @@
           <label for="token">Github API Key: </label>
           <input
             id="token"
+            type="password"
             bg-color="white"
             :style="{ flex: 1 }"
             v-model="token"
