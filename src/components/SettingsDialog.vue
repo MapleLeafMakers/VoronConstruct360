@@ -13,6 +13,21 @@
           />
         </div>
         <div class="row q-mb-sm">
+          <label for="fontSize">Font Size: </label>
+          <q-slider
+            color="blue-8"
+            id="fontSize"
+            :style="{ flex: 1 }"
+            v-model="prefs.fontSize"
+            :min="10"
+            :max="20"
+            :step="1"
+            snap
+            label
+            @update:model-value="previewFontSize"
+          />
+        </div>
+        <div class="row q-mb-sm">
           <label for="token">Interface URL: </label>
           <input
             id="token"
@@ -65,6 +80,9 @@ import { ref } from 'vue';
 const store = useCoreStore();
 const token = ref(store.token);
 const prefs = { ...store.preferences };
+const previewFontSize = (val) => {
+  document.querySelector('body').style.fontSize = `${val}px`;
+};
 
 defineEmits([
   // REQUIRED; need to specify some events that your

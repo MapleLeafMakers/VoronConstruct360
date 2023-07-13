@@ -120,6 +120,7 @@
         @action:upload="onUpload"
         @action:folder-download="onDownloadFolder"
         style="flex: 1"
+        :font-size="store.preferences.fontSize"
         :show-thumbnails="store.preferences.showThumbnails"
         :is-fusion-backend="store.backend.isFusion360"
       >
@@ -150,8 +151,8 @@
                 prop.node.type === 'blob'
                   ? store.preferences.showThumbnails
                     ? '48px'
-                    : '24px'
-                  : undefined
+                    : `${store.preferences.fontSize}px`
+                  : `${store.preferences.fontSize + 8}px`
               "
             />
             <div

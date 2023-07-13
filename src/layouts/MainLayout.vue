@@ -6,10 +6,18 @@
   </q-layout>
 </template>
 
-<script lang="ts">
-import { defineComponent } from 'vue';
+<script setup lang="ts">
+import { useCoreStore } from 'src/stores/core';
+import { watch, ref } from 'vue';
+const body = ref<HTMLElement>(document.querySelector('body') as HTMLElement);
+const store = useCoreStore();
+body.value.style.fontSize = `${store.preferences.fontSize}px`;
 
-export default defineComponent({
-  name: 'MainLayout',
-});
+watch(
+  () => store.preferences.fontSize,
+  () => {
+    body.value.style.fontSize = `${store.preferences.fontSize}px`;
+  }
+);
+console.log('body', body.value);
 </script>

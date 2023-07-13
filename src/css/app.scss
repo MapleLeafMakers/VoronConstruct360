@@ -9,7 +9,6 @@ body,
 .q-page-container,
 .q-page {
   font-family: Arial;
-  font-size: 12px;
   position: absolute;
   font-weight: 100;
   top: 0px;
@@ -142,7 +141,7 @@ select:focus,
   padding: 0px;
 }
 .q-tabs--dense .q-tab__label {
-  font-size: 12px;
+  font-size: inherit;
 }
 
 .thumbnail-edit-wrapper {

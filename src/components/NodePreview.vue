@@ -56,7 +56,7 @@
           <template v-if="store.backend.isFusion360">
             <q-btn
               icon="mdi-import"
-              size="sm"
+              :size="`${store.preferences.fontSize}px`"
               dense
               rounded
               unelevated
@@ -73,7 +73,7 @@
             <q-btn
               v-if="node.content_types?.step || node.content_types?.f3d"
               icon="mdi-open-in-new"
-              size="sm"
+              :size="`${store.preferences.fontSize}px`"
               dense
               rounded
               unelevated
@@ -92,7 +92,7 @@
             <q-btn
               v-if="node.content_types?.step || node.content_types?.f3d"
               icon="mdi-download"
-              size="sm"
+              :size="`${store.preferences.fontSize}px`"
               dense
               rounded
               unelevated
@@ -113,7 +113,7 @@
               (node.content_types?.step || node.content_types?.f3d)
             "
             icon="mdi-pencil"
-            size="sm"
+            :size="`${store.preferences.fontSize}px`"
             dense
             rounded
             unelevated

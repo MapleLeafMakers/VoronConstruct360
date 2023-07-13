@@ -19,6 +19,7 @@ export interface Preferences {
   previewSize: number;
   showManagementUI: boolean;
   interfaceUrl: string;
+  fontSize: number;
 }
 
 export function setNodeProps(tree: RepoNode[]) {
@@ -53,6 +54,7 @@ export const useCoreStore = defineStore('core', {
       previewSize: 128,
       showManagementUI: false,
       interfaceUrl: '',
+      fontSize: 12,
     } as Preferences,
   }),
 

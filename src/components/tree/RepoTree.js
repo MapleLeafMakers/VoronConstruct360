@@ -88,6 +88,7 @@ export default markRaw(
       showThumbnails: Boolean,
       showManagementUI: Boolean,
       isFusionBackend: Boolean,
+      fontSize: Number,
     },
 
     emits: [
@@ -546,14 +547,14 @@ export default markRaw(
               emit(event, { nodeId });
             },
             tabindex: -1,
-            size: 'xs',
+            size: props.fontSize - 2 + 'px',
             padding: 'none',
             style: { margin: 0 },
             flat: true,
             stretch: true,
           },
           () => [
-            h(QIcon, { size: 'xs', name: icon }),
+            h(QIcon, { size: props.fontSize + 4 + 'px', name: icon }),
             h(
               QTooltip,
               {
