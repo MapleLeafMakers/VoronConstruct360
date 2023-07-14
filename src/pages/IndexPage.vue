@@ -349,8 +349,9 @@ const handleAutoThumb = () => {
 const treeFilter = (node: RepoNode, filter: string) => {
   if (node.type === 'repo' || node.type === 'org') return false;
   const tokens = filter.toLowerCase().split(/\s+/);
+  const comp = store.preferences.searchFolderNames ? node.path : node.name;
   const matches = tokens.every((t: string) => {
-    if (node.path.toLowerCase().indexOf(t) !== -1) {
+    if (comp.toLowerCase().indexOf(t) !== -1) {
       return true;
     }
     let keywords = (node as BlobRepoNode).meta?.keywords as string;

@@ -45,6 +45,12 @@
         </div>
         <div class="row q-mb-sm">
           <label style="margin-left: 17px">
+            Search Folder Names:
+            <input type="checkbox" v-model="prefs.searchFolderNames" />
+          </label>
+        </div>
+        <div class="row q-mb-sm">
+          <label style="margin-left: 17px">
             Mgmt. Controls:
             <input type="checkbox" v-model="prefs.showManagementUI" />
           </label>

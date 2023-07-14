@@ -20,6 +20,7 @@ export interface Preferences {
   showManagementUI: boolean;
   interfaceUrl: string;
   fontSize: number;
+  searchFolderNames: boolean;
 }
 
 export function setNodeProps(tree: RepoNode[]) {
@@ -55,6 +56,7 @@ export const useCoreStore = defineStore('core', {
       showManagementUI: false,
       interfaceUrl: '',
       fontSize: 12,
+      searchFolderNames: true,
     } as Preferences,
   }),
 
