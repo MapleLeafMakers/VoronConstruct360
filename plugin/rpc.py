@@ -13,7 +13,7 @@ rpc = jsonrpcserver.Service()
 
 @rpc.method
 def get_version():
-    return 3
+    return 4
 
 
 @rpc.method
