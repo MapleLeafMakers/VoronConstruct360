@@ -312,7 +312,7 @@ export function _buildTree({
         },
       };
       node.path = (node.path.match(/^(.*?)(\.[^\.]*)?$/) as string[])[1];
-
+      node.name = (node.name.match(/^(.*?)(\.[^\.]*)?$/) as string[])[1];
       if (results.length > 0) {
         const prev = results[results.length - 1];
         if (prev.type === 'blob' && prev.path === node.path) {
@@ -493,7 +493,9 @@ export async function getMergedTrees({
     tree = await indexTree({ tree, token, treeShas, perNodeFunc });
   }
   console.log('Merged trees', tree);
-  return sortTree(pruneTree(tree));
+  const results = sortTree(pruneTree(tree));
+  console.log(results);
+  return results;
 }
 
 export function countNodes(tree: RepoNode[]): number {
