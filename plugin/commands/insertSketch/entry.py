@@ -81,6 +81,7 @@ def command_execute(args: adsk.core.CommandEventArgs):
     plane_input: adsk.core.SelectionCommandInput = inputs.itemById('plane')
     plane = plane_input.selection(0).entity
     sketch_info = importing.get_importing()
+    importing.set_importing(None)
     product = app.activeProduct
     design = adsk.fusion.Design.cast(product)
     target = design.rootComponent
