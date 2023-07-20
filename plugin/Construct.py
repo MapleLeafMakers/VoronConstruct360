@@ -1,11 +1,12 @@
+import sys, pathlib
+sys.path.insert(0, str(pathlib.Path(__file__).parent.resolve() / 'lib'))
+
 import adsk.core, adsk.fusion, adsk.cam
 from . import fusion360utils as futil
-import sys, pathlib
 from . import kv
 from .rpc import rpc
 from . import commands
 
-sys.path.insert(0, str(pathlib.Path(__file__).parent.resolve() / 'lib'))
 
 futil.general_utils.DEBUG = True
 
