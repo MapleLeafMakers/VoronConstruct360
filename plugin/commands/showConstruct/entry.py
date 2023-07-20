@@ -24,9 +24,6 @@ PALETTE_ID = config.construct_palette_id
 # such as 'https://www.autodesk.com/'
 PALETTE_URL = 'https://mapleleafmakers.github.io/VoronConstruct360/'
 
-# The path function builds a valid OS path. This fixes it to be a valid local URL.
-PALETTE_URL = PALETTE_URL.replace('\\', '/')
-
 # Set a default docking behavior for the palette
 PALETTE_DOCKING = adsk.core.PaletteDockingStates.PaletteDockStateRight
 
@@ -112,11 +109,15 @@ def command_execute(args: adsk.core.CommandEventArgs):
 
     palettes = ui.palettes
     palette = palettes.itemById(PALETTE_ID)
+    url = prefs.get('interfaceUrl', PALETTE_URL)
+    if not url.strip():
+        url = PALETTE_URL
+    futil.log(f"htmlFileUrl {url}")
     if palette is None:
         palette = palettes.add(
             id=PALETTE_ID,
             name=PALETTE_NAME,
-            htmlFileURL=prefs.get('interfaceUrl', PALETTE_URL),
+            htmlFileURL=url,
             isVisible=True,
             showCloseButton=True,
             isResizable=True,
