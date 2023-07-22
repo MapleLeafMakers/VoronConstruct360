@@ -28,16 +28,6 @@
           />
         </div>
         <div class="row q-mb-sm">
-          <label for="token">Interface URL: </label>
-          <input
-            id="token"
-            bg-color="white"
-            :style="{ flex: 1 }"
-            placeholder="https://mapleleafmakers.github.io/VoronConstruct360/"
-            v-model="prefs.interfaceUrl"
-          />
-        </div>
-        <div class="row q-mb-sm">
           <label style="margin-left: 17px">
             Show Thumbnails:
             <input type="checkbox" v-model="prefs.showThumbnails" />
@@ -109,7 +99,6 @@ const { dialogRef, onDialogHide, onDialogOK, onDialogCancel } =
 function onOKClick() {
   // on OK, it is REQUIRED to
   // call onDialogOK (with optional payload)
-  prefs.interfaceUrl;
   store.token = token;
   store.saveToken();
   Object.assign(store.preferences, prefs);
