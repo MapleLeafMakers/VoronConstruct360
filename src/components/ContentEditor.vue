@@ -257,9 +257,10 @@ const onEditingComplete = (
   node: PathTreeNode,
   newFolderName: string
 ) => {
-  const parent = treeRef.value?.getNodeByKey(
-    node.id.split('/').slice(0, -1).join('/')
-  );
+  const parent =
+    treeRef.value?.getNodeByKey(node.id.split('/').slice(0, -1).join('/')) ||
+    pathTree[0];
+
   let isValid = true;
   if (!newFolderName) {
     isValid = false;
@@ -273,8 +274,8 @@ const onEditingComplete = (
   }
 
   node.name = newFolderName;
-  node.path = parent.path = '/' + node.name;
-
+  node.path = `${parent.path}/${node.name}`;
+  selectedPath.value = node.path;
   if (!isValid) {
     event.preventDefault();
     event.stopImmediatePropagation();
@@ -283,6 +284,7 @@ const onEditingComplete = (
     node.editing = false;
   }
 };
+
 const pathToId = (path: string) => {
   return btoa(path).replaceAll('=', '');
 };
