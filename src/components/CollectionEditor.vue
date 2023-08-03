@@ -252,8 +252,6 @@ const handleDelete = () => {
       store.tree.splice(idx, 1);
       store.saveCollections();
       onDialogCancel();
-    } else {
-      console.log('No match found for', collection.id);
     }
   });
 };

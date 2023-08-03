@@ -249,12 +249,6 @@ setCache({
 
 const store = useCoreStore();
 
-onMounted(() => {
-  if (!store.token) {
-    openSettingsDialog();
-  }
-});
-
 store.loadState();
 const selected = ref<string[]>([]);
 const expanded = ref<string[]>([]);
