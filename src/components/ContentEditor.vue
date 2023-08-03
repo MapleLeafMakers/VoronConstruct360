@@ -443,7 +443,7 @@ const handleCaptureClick = async () => {
     thumbnail.value = thumb;
     thumbnailChanged.value = true;
   } else {
-    alert('Workspace image capture failed.');
+    showAlert({ message: 'Workspace image capture failed.' });
   }
 };
 

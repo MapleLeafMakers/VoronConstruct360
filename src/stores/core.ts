@@ -179,7 +179,6 @@ export const useCoreStore = defineStore('core', {
       if (!node) {
         throw new Error('Node not found');
       }
-      console.log('reloading collection', node);
       node.lazy = 'loading';
       let tree;
       if (node.type === 'repo') {
@@ -200,7 +199,6 @@ export const useCoreStore = defineStore('core', {
             token: this.token,
           })
         ).map((o) => ({ ...o, id: uid() }));
-        console.log('is org', tree);
         for (const orgRepo of tree) {
           orgRepo.children = await getMergedTrees({
             repositories: orgRepo.repositories.map((r: Repository) => r.repr),

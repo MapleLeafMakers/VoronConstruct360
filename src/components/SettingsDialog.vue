@@ -104,7 +104,7 @@ const { dialogRef, onDialogHide, onDialogOK, onDialogCancel } =
 function onOKClick() {
   verifyToken({ token: token.value }).then((isValid) => {
     if (!isValid) {
-      alert('The provided access token is invalid.');
+      showAlert({ message: 'The provided access token is invalid.' });
     } else {
       store.token = token;
       store.saveToken();

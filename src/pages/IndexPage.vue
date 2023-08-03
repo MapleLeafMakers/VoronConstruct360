@@ -335,7 +335,6 @@ const handleAddRepository = () => {
   $q.dialog({
     component: CollectionEditor,
   }).onOk((newCollection) => {
-    console.log('OK', newCollection);
     const id = uid();
     store.tree.push({
       ...newCollection,

@@ -173,6 +173,7 @@ const { humanStorageSize } = format;
 
 import { ref, reactive, computed } from 'vue';
 import { uploadFiles } from 'src/repodb';
+import { showAlert } from 'src/alert';
 const selectedPath = ref(null);
 const expandedPaths = ref([]);
 const store = useCoreStore();
@@ -285,7 +286,6 @@ const uploadAndCommit = async () => {
     message: 'Add auto-generated thumbnails.',
     progressCallback: (processed: number, total: number) => {
       uploadProgress.value = [processed, total];
-      console.log(humanStorageSize(processed), '/', humanStorageSize(total));
     },
   });
 };
@@ -329,7 +329,7 @@ function onOKClick() {
         onDialogOK(collection?.value?.id);
       })
       .catch((err) => {
-        alert(err);
+        showAlert({ message: `${err}` });
       });
   } else {
     // 1st phase, OK-ing the thumbnail generation.
@@ -346,7 +346,6 @@ function onOKClick() {
     processThumbs()
       .then(() => {
         totalModelsToProcess.value = 0;
-        console.log('done');
       })
       .catch((err) => {
         console.error('Processing Error', err);

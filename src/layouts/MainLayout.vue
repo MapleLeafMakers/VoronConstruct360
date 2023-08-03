@@ -19,5 +19,4 @@ watch(
     body.value.style.fontSize = `${store.preferences.fontSize}px`;
   }
 );
-console.log('body', body.value);
 </script>

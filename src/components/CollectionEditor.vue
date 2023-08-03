@@ -118,8 +118,10 @@
 <script setup>
 import { useQuasar, useDialogPluginComponent } from 'quasar';
 import { cleanRepoString, getOrgOrUserRepos } from 'src/repodb';
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, reactive, ref } from 'vue';
 import { useCoreStore } from 'src/stores/core';
+import { showAlert } from 'src/alert';
+
 const $q = useQuasar();
 const store = useCoreStore();
 const selectedRepo = ref(null);
@@ -174,7 +176,17 @@ const onAdd = async () => {
         token: store.token,
       });
     } catch (err) {
-      alert(err);
+      let message = `${err}`;
+
+      if (err?.response) {
+        if (err.response.status === 401) {
+          message =
+            "You don't have permission to access this repository using the provided access token.";
+        } else if (err.response.status === 404) {
+          message = 'Repository not found';
+        }
+      }
+      showAlert({ message });
       return;
     }
 
