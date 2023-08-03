@@ -865,11 +865,9 @@ export async function uploadFiles({
 
 export async function verifyToken({ token }: { token: string }) {
   try {
-    console.log('testing token', token);
-    const response = await axios.get(`${BASE_URL}/user`, {
+    await axios.get(`${BASE_URL}/user`, {
       headers: getHeaders(token),
     });
-    console.log(response.status, response.data);
     return true;
   } catch (err) {
     if (err?.response && err?.response?.status === 401) {
