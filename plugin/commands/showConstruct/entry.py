@@ -112,7 +112,7 @@ def command_execute(args: adsk.core.CommandEventArgs):
     url = prefs.get('interfaceUrl', PALETTE_URL)
     if not url.strip():
         url = PALETTE_URL
-    futil.log(f"htmlFileUrl {url}")
+
     if palette is None:
         palette = palettes.add(
             id=PALETTE_ID,

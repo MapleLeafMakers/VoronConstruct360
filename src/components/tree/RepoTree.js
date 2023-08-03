@@ -922,7 +922,6 @@ export default markRaw(
 
       return () => {
         const children = getChildren(props.nodes);
-
         return h(
           'div',
           {
@@ -931,7 +930,9 @@ export default markRaw(
           children.length === 0
             ? props.filter
               ? props.noResultsLabel || $q.lang.tree.noResults
-              : props.noNodesLabel || $q.lang.tree.noNodes
+              : slots['no-nodes']({ tree: proxy }) ||
+                props.noNodesLabel ||
+                $q.lang.tree.noNodesLabel
             : children
         );
       };

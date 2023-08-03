@@ -109,7 +109,6 @@
         label-key="name"
         node-key="id"
         no-selection-unset
-        :no-nodes-label="getNoNodesLabel()"
         v-model:selected="selected"
         v-model:expanded="expanded"
         @update:expanded="onExpand"
@@ -124,6 +123,22 @@
         :show-thumbnails="store.preferences.showThumbnails"
         :is-fusion-backend="store.backend.isFusion360"
       >
+        <template v-slot:no-nodes>
+          <div style="width: 100%; text-align: center; padding: 5em">
+            <q-btn
+              v-if="!store.token"
+              label="Settings"
+              icon="settings"
+              @click="openSettingsDialog"
+            />
+            <q-btn
+              v-else
+              label="Add Repository"
+              icon="add"
+              @click="handleAddRepository"
+            />
+          </div>
+        </template>
         <template v-slot:default-header="prop">
           <div class="row">
             <img
@@ -199,7 +214,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, watch, computed, h } from 'vue';
+import { ref, watch, computed, h, onMounted } from 'vue';
 import { useCoreStore } from 'src/stores/core';
 import { RepoTree } from 'src/components/tree';
 import { setCache, RepoNode, BlobRepoNode } from 'src/repodb';
@@ -233,19 +248,18 @@ setCache({
 });
 
 const store = useCoreStore();
+
+onMounted(() => {
+  if (!store.token) {
+    openSettingsDialog();
+  }
+});
+
 store.loadState();
 const selected = ref<string[]>([]);
 const expanded = ref<string[]>([]);
 const treeRef = ref<QTree>();
 const previouslyExpanded = ref<string[]>([]);
-
-const getNoNodesLabel = () => {
-  const node = h('div', { class: 'row justify-center q-my-xl' }, [
-    'Select "Add Repository" from the menu to get started.',
-  ]);
-
-  return node;
-};
 
 const onExpand = (expandedNodes: string[]) => {
   expandedNodes

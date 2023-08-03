@@ -3,14 +3,24 @@
     <q-card class="q-dialog-plugin">
       <q-card-section>
         <div class="row q-mb-sm">
-          <label for="token">Github API Key: </label>
-          <input
-            id="token"
-            type="password"
-            bg-color="white"
-            :style="{ flex: 1 }"
-            v-model="token"
-          />
+          <label for="token">Github Access Token: </label>
+          <div style="flex-direction: column; display: flex">
+            <input
+              autofocus
+              ref="tokenInput"
+              id="token"
+              type="password"
+              bg-color="white"
+              :style="{ flex: 1 }"
+              v-model="token"
+            />
+            <span class="help-text"
+              >Generate a new access token
+              <a target="_blank" href="https://github.com/settings/tokens/new"
+                >here</a
+              ></span
+            >
+          </div>
         </div>
         <div class="row q-mb-sm">
           <label for="fontSize">Font Size: </label>
@@ -70,9 +80,11 @@
 </template>
 
 <script setup>
+import { verifyToken } from 'src/repodb';
 import { useCoreStore } from 'src/stores/core';
 import { useDialogPluginComponent } from 'quasar';
 import { ref } from 'vue';
+const tokenInput = ref(null);
 const store = useCoreStore();
 const token = ref(store.token);
 const prefs = { ...store.preferences };
@@ -88,23 +100,18 @@ defineEmits([
 
 const { dialogRef, onDialogHide, onDialogOK, onDialogCancel } =
   useDialogPluginComponent();
-// dialogRef      - Vue ref to be applied to QDialog
-// onDialogHide   - Function to be used as handler for @hide on QDialog
-// onDialogOK     - Function to call to settle dialog with "ok" outcome
-//                    example: onDialogOK() - no payload
-//                    example: onDialogOK({ /*...*/ }) - with payload
-// onDialogCancel - Function to call to settle dialog with "cancel" outcome
 
-// this is part of our example (so not required)
 function onOKClick() {
-  // on OK, it is REQUIRED to
-  // call onDialogOK (with optional payload)
-  store.token = token;
-  store.saveToken();
-  Object.assign(store.preferences, prefs);
-  store.savePreferences();
-  onDialogOK();
-  // or with payload: onDialogOK({ ... })
-  // ...and it will also hide the dialog automatically
+  verifyToken({ token: token.value }).then((isValid) => {
+    if (!isValid) {
+      alert('The provided access token is invalid.');
+    } else {
+      store.token = token;
+      store.saveToken();
+      Object.assign(store.preferences, prefs);
+      store.savePreferences();
+      onDialogOK();
+    }
+  });
 }
 </script>

@@ -862,3 +862,19 @@ export async function uploadFiles({
     { headers: getHeaders(token, { 'Content-Type': 'application/json' }) }
   );
 }
+
+export async function verifyToken({ token }: { token: string }) {
+  try {
+    console.log('testing token', token);
+    const response = await axios.get(`${BASE_URL}/user`, {
+      headers: getHeaders(token),
+    });
+    console.log(response.status, response.data);
+    return true;
+  } catch (err) {
+    if (err?.response && err?.response?.status === 401) {
+      console.log('401', err.response.data);
+      return false;
+    }
+  }
+}
