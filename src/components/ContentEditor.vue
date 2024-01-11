@@ -275,6 +275,7 @@ const onEditingComplete = (
 
   node.name = newFolderName;
   node.path = `${parent.path}/${node.name}`;
+  node.id = node.path;
   selectedPath.value = node.path;
   if (!isValid) {
     event.preventDefault();
