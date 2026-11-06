@@ -247,8 +247,10 @@ const getModels = (tree: RepoNode[]) => {
 
   return nodes.filter((n: RepoNode) => {
     let node = n as BlobRepoNode;
-    !node?.content_types?.thumb &&
-      (node?.content_types?.step || node?.content_types?.f3d);
+    return (
+      !node?.content_types?.thumb &&
+      (node?.content_types?.step || node?.content_types?.f3d)
+    );
   });
 };
 
