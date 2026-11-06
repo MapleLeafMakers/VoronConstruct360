@@ -1,5 +1,6 @@
 import tempfile
 import os
+import traceback
 import adsk.core, adsk.fusion
 import base64
 from . import importing
@@ -37,21 +38,28 @@ def get_screenshot(width=256, height=256, transparent=False, antialias=True):
 
 @rpc.method
 def autothumb(url, content_type, token, width=256, height=256, transparent=False, antialias=True):
-    screenshot = None
     importManager = futil.app.importManager
-    with download(url, token, extension=content_type) as file_path:
-        options = create_import_options(file_path, content_type)
-        doc = None
-        try:
+    doc = None
+    try:
+        with download(url, token, extension=content_type) as file_path:
+            options = create_import_options(file_path, content_type)
             doc = importManager.importToNewDocument(options)
-            screenshot = get_screenshot(256, 256, transparent=transparent, antialias=antialias)
-        except:
-            pass
-        finally:
-            if doc:
-                doc.close(False)
-
-        return screenshot
+            # Let Fusion finish loading/rendering the new document, and frame the
+            # model, otherwise the screenshot can be blank or of the wrong view.
+            adsk.doEvents()
+            futil.app.activeViewport.fit()
+            adsk.doEvents()
+            return get_screenshot(width, height, transparent=transparent, antialias=antialias)
+    except Exception:
+        futil.log(
+            'autothumb failed for {}:\n{}'.format(url, traceback.format_exc()),
+            adsk.core.LogLevels.ErrorLogLevel,
+            force_console=True,
+        )
+        return None
+    finally:
+        if doc:
+            doc.close(False)
 
 
 @rpc.method

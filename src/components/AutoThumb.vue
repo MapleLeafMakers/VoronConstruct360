@@ -348,6 +348,17 @@ function onOKClick() {
     processThumbs()
       .then(() => {
         totalModelsToProcess.value = 0;
+        if (!processedThumbs.value.length) {
+          showAlert({
+            message:
+              'No thumbnails were generated. Check the Fusion 360 Text Commands window for errors.',
+          });
+          return;
+        }
+        // Default the upload target so the OK button isn't stuck disabled.
+        if (!selectedRepo.value) {
+          selectedRepo.value = collection.value?.repositories?.[0]?.repr ?? null;
+        }
       })
       .catch((err) => {
         console.error('Processing Error', err);

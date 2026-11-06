@@ -14,6 +14,7 @@ def download(url, token, filename=None, extension=''):
 
     filename = '{}.{}'.format(filename, extension)
     response = requests.get(url, headers={'Accept': 'application/vnd.github.raw', 'Authorization': 'Bearer {}'.format(token)})
+    response.raise_for_status()
 
     with tempfile.TemporaryDirectory() as temp_dir:
         full_path = os.path.join(temp_dir, filename)
