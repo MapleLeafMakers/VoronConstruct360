@@ -76,3 +76,4 @@ def deploy(build_frontend=False):
 if __name__ == '__main__':
     build_flag = '--build' in sys.argv
     deploy(build_frontend=build_flag)
+
