@@ -44,3 +44,4 @@ venv
 build/
 plugin/lib
 cache.db
+*.exe

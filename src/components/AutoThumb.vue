@@ -240,7 +240,7 @@ const getModels = (tree: RepoNode[]) => {
   for (let node of tree) {
     if (node.type === 'tree' && node.children && node.children.length > 0) {
       nodes.push(...getModels(node.children));
-    } else {
+    } else if (node.type === 'blob') {
       nodes.push(node);
     }
   }

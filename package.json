@@ -10,7 +10,10 @@
     "format": "prettier --write \"**/*.{js,ts,vue,scss,html,md,json}\" --ignore-path .gitignore",
     "test": "echo \"No test specified\" && exit 0",
     "dev": "quasar dev",
-    "build": "quasar build"
+    "build": "quasar build",
+    "deploy:fusion": "python scripts/deploy_fusion.py",
+    "build:fusion": "quasar build && python scripts/deploy_fusion.py",
+    "build:installer": "powershell -ExecutionPolicy Bypass -File scripts/build_installer.ps1"
   },
   "dependencies": {
     "@quasar/extras": "^1.16.4",

@@ -99,7 +99,7 @@ export const useCoreStore = defineStore('core', {
                   repr: r,
                   repo: r.split('/').slice(0, 2).join('/'),
                   path: r.split('/').slice(2).join('/'),
-                  branch: r.split('#')[1] || null,
+                  branch: r.split('#')[1] || undefined,
                 } as Repository;
               }
               return r;

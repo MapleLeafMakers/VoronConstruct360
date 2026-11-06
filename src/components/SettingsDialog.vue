@@ -79,11 +79,12 @@
   </q-dialog>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { verifyToken } from 'src/repodb';
 import { useCoreStore } from 'src/stores/core';
 import { useDialogPluginComponent } from 'quasar';
 import { ref } from 'vue';
+import { showAlert } from 'src/alert';
 const tokenInput = ref(null);
 const store = useCoreStore();
 const token = ref(store.token);
@@ -106,7 +107,7 @@ function onOKClick() {
     if (!isValid) {
       showAlert({ message: 'The provided access token is invalid.' });
     } else {
-      store.token = token;
+      store.token = token.value;
       store.saveToken();
       Object.assign(store.preferences, prefs);
       store.savePreferences();
