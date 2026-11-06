@@ -204,7 +204,8 @@
           class="bordered"
           label="OK"
           color="positive"
-          :disable="!canSave()"
+          :loading="busy"
+          :disable="!canSave() || busy"
           @click="onOKClick"
         />
       </q-card-actions>
@@ -223,6 +224,7 @@ import {
   uploadFiles,
 } from 'src/repodb';
 import { useCoreStore } from 'src/stores/core';
+import { showAlert } from 'src/alert';
 import { onMounted, ref, computed, reactive } from 'vue';
 const bgTransparency = ref(false);
 const filePicker = ref<HTMLInputElement | null>(null);
@@ -395,6 +397,7 @@ const handleImagePaste = (e: ClipboardEvent) => {
   reader.onload = () => {
     const dataUrl = reader.result;
     thumbnail.value = dataUrl as string;
+    thumbnailChanged.value = true;
   };
   reader.readAsDataURL(cbPayload[0].getAsFile());
 };
@@ -478,6 +481,7 @@ const canSave = () => {
   if (uploadF3d.value || uploadStep.value) {
     return true;
   }
+  return false;
 };
 onMounted(() => {
   loadThumbnail();
@@ -498,13 +502,16 @@ const { dialogRef, onDialogHide, onDialogOK, onDialogCancel } =
 //                    example: onDialogOK({ /*...*/ }) - with payload
 // onDialogCancel - Function to call to settle dialog with "cancel" outcome
 
-// this is part of our example (so not required)
-function onOKClick() {
+async function onOKClick() {
   busy.value = true;
-  setTimeout(() => {
+  try {
     const repo = collection.repositories.filter(
       (r) => r.repr === selectedRepo.value
     )[0];
+
+    if (!repo) {
+      throw new Error(`Repository "${selectedRepo.value}" not found in collection.`);
+    }
 
     let path = repo.path || '';
     if (path && selectedPath.value) {
@@ -514,44 +521,59 @@ function onOKClick() {
     }
     path = path === '' ? `${name.value}` : `${path}/${name.value}`;
 
-    store.backend
-      .export_model({ f3d: uploadF3d.value, step: uploadStep.value })
-      .then((modelData) => {
-        const files = [];
-        busy.value = false;
-        if (uploadF3d.value) {
-          files.push({
-            path: `${path}.f3d`,
-            content: modelData.f3d?.split(',')[1],
-            encoding: 'base64',
-          });
-        }
-        if (uploadStep.value) {
-          files.push({
-            path: `${path}.step`,
-            content: modelData.step?.split(',')[1],
-            encoding: 'base64',
-          });
-        }
-        if (thumbnailChanged.value) {
-          files.push({
-            path: `${path}.png`,
-            content: thumbnail.value.split(',')[1],
-            encoding: 'base64',
-          });
-        }
+    const files = [];
 
-        uploadFiles({
-          repo: repo.repo,
-          branch: repo.branch,
-          files,
-          message: `Add ${path}`,
-          token: store.token,
-        }).then(() => {
-          busy.value = false;
-          onDialogOK(collection);
-        });
+    if (uploadF3d.value || uploadStep.value) {
+      const modelData = await store.backend.export_model({
+        f3d: uploadF3d.value,
+        step: uploadStep.value,
       });
-  }, 500);
+      if (uploadF3d.value && modelData?.f3d) {
+        files.push({
+          path: `${path}.f3d`,
+          content: modelData.f3d.split(',')[1],
+          encoding: 'base64',
+        });
+      }
+      if (uploadStep.value && modelData?.step) {
+        files.push({
+          path: `${path}.step`,
+          content: modelData.step.split(',')[1],
+          encoding: 'base64',
+        });
+      }
+    }
+
+    if (thumbnailChanged.value && thumbnail.value) {
+      files.push({
+        path: `${path}.png`,
+        content: thumbnail.value.split(',')[1],
+        encoding: 'base64',
+      });
+    }
+
+    if (files.length === 0) {
+      showAlert({ message: 'No changes or files to upload.' });
+      busy.value = false;
+      return;
+    }
+
+    await uploadFiles({
+      repo: repo.repo,
+      branch: repo.branch,
+      files,
+      message: `Add ${path}`,
+      token: store.token,
+    });
+
+    busy.value = false;
+    onDialogOK(collection);
+  } catch (err: any) {
+    busy.value = false;
+    console.error('Save failed:', err);
+    const msg =
+      err?.response?.data?.message || err?.message || String(err);
+    showAlert({ message: `Failed to commit changes: ${msg}` });
+  }
 }
 </script>
