@@ -109,9 +109,14 @@ def command_execute(args: adsk.core.CommandEventArgs):
 
     palettes = ui.palettes
     palette = palettes.itemById(PALETTE_ID)
-    url = prefs.get('interfaceUrl', PALETTE_URL)
+
+    # Check for locally deployed UI in Construct/ui/index.html
+    local_ui = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'ui', 'index.html')
+    default_url = local_ui if os.path.exists(local_ui) else PALETTE_URL
+
+    url = prefs.get('interfaceUrl', default_url)
     if not url.strip():
-        url = PALETTE_URL
+        url = default_url
 
     if palette is None:
         palette = palettes.add(
