@@ -44,8 +44,6 @@ def autothumb(url, content_type, token, width=256, height=256, transparent=False
         with download(url, token, extension=content_type) as file_path:
             options = create_import_options(file_path, content_type)
             doc = importManager.importToNewDocument(options)
-            # Let Fusion finish loading/rendering the new document, and frame the
-            # model, otherwise the screenshot can be blank or of the wrong view.
             adsk.doEvents()
             futil.app.activeViewport.fit()
             adsk.doEvents()
