@@ -61,6 +61,37 @@ def autothumb(url, content_type, token, width=256, height=256, transparent=False
 
 
 @rpc.method
+def autof3d(url, token, content_type='step'):
+    importManager = futil.app.importManager
+    doc = None
+    try:
+        with download(url, token, extension=content_type) as file_path:
+            options = create_import_options(file_path, content_type)
+            doc = importManager.importToNewDocument(options)
+            adsk.doEvents()
+            design = adsk.fusion.Design.cast(doc.products.itemByProductType('DesignProductType'))
+            if not design:
+                design = adsk.fusion.Design.cast(futil.app.activeProduct)
+            exportManager = design.exportManager
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                fname = os.path.join(tmp_dir, 'model.f3d')
+                export_options = exportManager.createFusionArchiveExportOptions(fname, design.rootComponent)
+                exportManager.execute(export_options)
+                with open(fname, 'rb') as f:
+                    return base64.b64encode(f.read()).decode('utf8')
+    except Exception:
+        futil.log(
+            'autof3d failed for {}:\n{}'.format(url, traceback.format_exc()),
+            adsk.core.LogLevels.ErrorLogLevel,
+            force_console=True,
+        )
+        return None
+    finally:
+        if doc:
+            doc.close(False)
+
+
+@rpc.method
 def open_model(url, token, content_type=None, filename=None):
     app = adsk.core.Application.get()
     importManager = app.importManager

@@ -24,6 +24,8 @@ jobs:
           node-version: 20
       - run: npm install
       - run: npm run build
+        env:
+          PUBLIC_PATH: /VoronConstruct360/
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist/spa

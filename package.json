@@ -42,5 +42,9 @@
     "node": "^18 || ^16 || ^14.19",
     "npm": ">= 6.13.4",
     "yarn": ">= 1.21.1"
+  },
+  "allowScripts": {
+    "vue-demi@0.14.5": true,
+    "esbuild@0.14.51": true
   }
 }

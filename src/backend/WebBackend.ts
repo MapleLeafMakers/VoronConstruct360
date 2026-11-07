@@ -93,7 +93,7 @@ export class WebBackend implements Backend {
     }
   }
 
-  get_screenshot({}: {
+  get_screenshot({ }: {
     width?: number | undefined;
     height?: number | undefined;
     transparent?: boolean | undefined;
@@ -126,7 +126,7 @@ export class WebBackend implements Backend {
     URL.revokeObjectURL(blobUrl);
   }
 
-  import_model({}: {
+  import_model({ }: {
     url: string;
     token: string;
     content_type: ContentTypes;
@@ -134,7 +134,7 @@ export class WebBackend implements Backend {
   }): Promise<void> {
     throw new Error('Method not implemented.');
   }
-  export_model({}: { step: boolean; f3d: boolean }): Promise<{
+  export_model({ }: { step: boolean; f3d: boolean }): Promise<{
     name: string;
     step?: string | undefined;
     f3d?: string | undefined;
@@ -144,7 +144,7 @@ export class WebBackend implements Backend {
   close(): Promise<void> {
     throw new Error('Method not implemented.');
   }
-  autothumb({}: {
+  autothumb({ }: {
     url: string;
     content_type: ContentTypes;
     token: string;
@@ -152,6 +152,13 @@ export class WebBackend implements Backend {
     height?: number | undefined;
     transparent?: boolean | undefined;
     antialias?: boolean | undefined;
+  }): Promise<string> {
+    throw new Error('Method not implemented.');
+  }
+  autof3d({ }: {
+    url: string;
+    token: string;
+    content_type?: ContentTypes;
   }): Promise<string> {
     throw new Error('Method not implemented.');
   }

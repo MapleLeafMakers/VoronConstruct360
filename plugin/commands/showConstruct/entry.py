@@ -1,7 +1,9 @@
 import json
 import adsk.core
 import os
-import pathlib
+import http.server
+import socketserver
+import threading
 from ... import fusion360utils as futil
 from ... import config
 from ...rpc import rpc
@@ -10,6 +12,39 @@ from datetime import datetime
 
 app = adsk.core.Application.get()
 ui = app.userInterface
+
+# Local UI HTTP server instance
+_local_server = None
+_local_port = None
+
+
+def get_or_start_local_ui_server(ui_dir: str) -> int:
+    global _local_server, _local_port
+    if _local_server is not None and _local_port is not None:
+        return _local_port
+
+    class QuietHandler(http.server.SimpleHTTPRequestHandler):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, directory=ui_dir, **kwargs)
+
+        def translate_path(self, path):
+            if path.startswith('/VoronConstruct360/'):
+                path = path[len('/VoronConstruct360'):]
+            return super().translate_path(path)
+
+        def log_message(self, format, *args):
+            pass
+
+    class QuietTCPServer(socketserver.TCPServer):
+        allow_reuse_address = True
+
+    server = QuietTCPServer(('127.0.0.1', 0), QuietHandler)
+    _local_server = server
+    port = server.server_address[1]
+    _local_port = port
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    futil.log(f'Local UI server started on port {port}')
+    return port
 
 # TODO ********************* Change these names *********************
 CMD_ID = f'{config.ADDIN_NAME}_PalleteShow'
@@ -68,6 +103,8 @@ def start():
 
 # Executed when add-in is stopped.
 def stop():
+    global _local_server, _local_port
+
     # Get the various UI elements for this command
     workspace = ui.workspaces.itemById(WORKSPACE_ID)
     panel = workspace.toolbarPanels.itemById(PANEL_ID)
@@ -86,6 +123,14 @@ def stop():
     # Delete the Palette
     if palette:
         palette.deleteMe()
+
+    if _local_server is not None:
+        try:
+            _local_server.shutdown()
+        except Exception:
+            pass
+        _local_server = None
+        _local_port = None
 
 
 # Event handler that is called when the user clicks the command button in the UI.
@@ -112,8 +157,12 @@ def command_execute(args: adsk.core.CommandEventArgs):
     palette = palettes.itemById(PALETTE_ID)
 
     # Check for locally deployed UI in Construct/ui/index.html
-    local_ui = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'ui', 'index.html')
-    default_url = pathlib.Path(local_ui).as_uri() if os.path.exists(local_ui) else PALETTE_URL
+    local_ui_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'ui')
+    if os.path.isfile(os.path.join(local_ui_dir, 'index.html')):
+        port = get_or_start_local_ui_server(local_ui_dir)
+        default_url = f'http://127.0.0.1:{port}/index.html'
+    else:
+        default_url = PALETTE_URL
 
     url = prefs.get('interfaceUrl', default_url)
     if not url.strip():
@@ -137,7 +186,7 @@ def command_execute(args: adsk.core.CommandEventArgs):
         futil.log(f'{CMD_NAME}: Created a new palette: ID = {palette.id}, Name = {palette.name}')
 
     if palette.dockingState == adsk.core.PaletteDockingStates.PaletteDockStateFloating:
-        palette.dockingState = PALETTE_DOCKING
+        palette.dockingState = PALETTE_DOCKING  # type: ignore
 
     palette.isVisible = True
 
@@ -160,7 +209,8 @@ def palette_navigating(args: adsk.core.NavigationEventArgs):
     futil.log(log_msg, adsk.core.LogLevels.InfoLogLevel)
 
     # Check if url is an external site and open in user's default browser.
-    if url.startswith("http"):
+    # Do not launch externally if navigating to the palette's own URL or a local server.
+    if url.startswith("http") and not url.startswith(PALETTE_URL) and not url.startswith("http://localhost") and not url.startswith("http://127.0.0.1"):
         args.launchExternally = True
 
 
