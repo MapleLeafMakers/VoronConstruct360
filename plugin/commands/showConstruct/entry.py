@@ -1,6 +1,7 @@
 import json
 import adsk.core
 import os
+import pathlib
 from ... import fusion360utils as futil
 from ... import config
 from ...rpc import rpc
@@ -22,7 +23,7 @@ PALETTE_ID = config.construct_palette_id
 
 # Specify the full path to the local html. You can also use a web URL
 # such as 'https://www.autodesk.com/'
-PALETTE_URL = 'https://mapleleafmakers.github.io/VoronConstruct360/'
+PALETTE_URL = 'https://crashingtardis.github.io/VoronConstruct360/'
 
 # Set a default docking behavior for the palette
 PALETTE_DOCKING = adsk.core.PaletteDockingStates.PaletteDockStateRight
@@ -112,7 +113,7 @@ def command_execute(args: adsk.core.CommandEventArgs):
 
     # Check for locally deployed UI in Construct/ui/index.html
     local_ui = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'ui', 'index.html')
-    default_url = local_ui if os.path.exists(local_ui) else PALETTE_URL
+    default_url = pathlib.Path(local_ui).as_uri() if os.path.exists(local_ui) else PALETTE_URL
 
     url = prefs.get('interfaceUrl', default_url)
     if not url.strip():
