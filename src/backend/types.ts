@@ -117,4 +117,13 @@ export interface Backend {
     transparent?: boolean;
     antialias?: boolean;
   }): Promise<string>;
+  autof3d({
+    url,
+    token,
+    content_type,
+  }: {
+    url: string;
+    token: string;
+    content_type?: ContentTypes;
+  }): Promise<string>;
 }

@@ -115,7 +115,7 @@
   </q-dialog>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { useQuasar, useDialogPluginComponent } from 'quasar';
 import { cleanRepoString, getOrgOrUserRepos } from 'src/repodb';
 import { computed, reactive, ref } from 'vue';
@@ -227,7 +227,6 @@ const handleDelete = () => {
   $q.dialog({
     title: 'Are you sure?',
     message: 'Are you sure you want to permanently delete this collection?',
-    cancel: true,
     persistent: false,
     ok: {
       class: 'bordered',

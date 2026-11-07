@@ -68,7 +68,7 @@ const startDownloads = async () => {
   );
   const totalFiles = allFiles.length;
 
-  const zip = JSZip();
+  const zip = new JSZip();
 
   for (const [i, file] of allFiles.entries()) {
     const blob = await downloadRawBlob({ url: file.url, token: store.token });

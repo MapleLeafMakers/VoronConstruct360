@@ -33,16 +33,7 @@ jobs:
           echo "IS_PRERELEASE=${{ contains(github.ref, 'pre') ||  contains(github.ref, 'beta') || contains(github.ref, 'alpha') || contains(github.ref, 'danger') }}" >> $GITHUB_OUTPUT
         id: create_changelog
 
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
-        with:
-          prerelease: ${{ contains(github.ref, 'pre') ||  contains(github.ref, 'beta') || contains(github.ref, 'alpha') || contains(github.ref, 'danger') }}
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          body_path: CHANGELOG
+
 
       - name: Remove CHANGELOG
         run: rm CHANGELOG
@@ -55,13 +46,16 @@ jobs:
         with:
           args: zip -qq -r Construct.zip Construct/
 
-      - name: Upload the artifacts
-        uses: skx/github-action-publish-binaries@master
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
         with:
-          args: 'Construct.zip'
-          releaseId: ${{steps.create_release.outputs.id}}
+          prerelease: ${{ contains(github.ref, 'pre') ||  contains(github.ref, 'beta') || contains(github.ref, 'alpha') || contains(github.ref, 'danger') }}
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          body_path: CHANGELOG
 
       - name: Publish frontend to GH Pages
         if: ${{ steps.create_changelog.outputs.IS_PRERELEASE == 'false' }}

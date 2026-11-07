@@ -170,4 +170,21 @@ export class FusionBackend implements Backend {
     })) as string;
     return result;
   }
+
+  async autof3d({
+    url,
+    token,
+    content_type = 'step',
+  }: {
+    url: string;
+    token: string;
+    content_type?: ContentTypes;
+  }) {
+    const result = (await rpc.request('autof3d', {
+      url,
+      token,
+      content_type,
+    })) as string;
+    return result;
+  }
 }

@@ -53,6 +53,18 @@
                   <q-item-section>Auto-Thumb</q-item-section>
                 </q-item>
                 <q-item
+                  v-if="store.preferences.showManagementUI"
+                  dense
+                  clickable
+                  v-close-popup
+                  @click="handleAutoF3D"
+                >
+                  <q-item-section avatar>
+                    <q-icon name="view_in_ar" />
+                  </q-item-section>
+                  <q-item-section>Auto-F3D</q-item-section>
+                </q-item>
+                <q-item
                   v-if="updateAvailable"
                   dense
                   clickable
@@ -224,6 +236,7 @@ import SettingsDialog from 'src/components/SettingsDialog.vue';
 import CollectionEditor from 'src/components/CollectionEditor.vue';
 import ContentEditor from 'src/components/ContentEditor.vue';
 import AutoThumb from 'src/components/AutoThumb.vue';
+import AutoF3D from 'src/components/AutoF3D.vue';
 import { ContentTypes, JsonSerializable } from 'src/backend';
 import FolderDownloader from 'src/components/FolderDownloader.vue';
 
@@ -346,6 +359,16 @@ const handleAddRepository = () => {
 const handleAutoThumb = () => {
   $q.dialog({
     component: AutoThumb,
+  }).onOk((reloadCollectionId) => {
+    if (reloadCollectionId) {
+      reloadCollection({ nodeId: reloadCollectionId });
+    }
+  });
+};
+
+const handleAutoF3D = () => {
+  $q.dialog({
+    component: AutoF3D,
   }).onOk((reloadCollectionId) => {
     if (reloadCollectionId) {
       reloadCollection({ nodeId: reloadCollectionId });

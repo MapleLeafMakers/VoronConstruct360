@@ -18,13 +18,13 @@ ui = app.userInterface
 
 # Attempt to read DEBUG flag from parent config.
 try:
-    from ... import config
+    from .. import config
     DEBUG = config.DEBUG
 except:
     DEBUG = False
 
 
-def log(message: str, level: adsk.core.LogLevels = adsk.core.LogLevels.InfoLogLevel, force_console: bool = False):
+def log(message: str, level: int = adsk.core.LogLevels.InfoLogLevel, force_console: bool = False):
     """Utility function to easily handle logging in your app.
 
     Arguments:
@@ -38,12 +38,12 @@ def log(message: str, level: adsk.core.LogLevels = adsk.core.LogLevels.InfoLogLe
     # Log all errors to Fusion log file.
     if level == adsk.core.LogLevels.ErrorLogLevel:
         log_type = adsk.core.LogTypes.FileLogType
-        app.log(message, level, log_type)
+        app.log(message, level, log_type)  # type: ignore
 
     # If config.DEBUG is True write all log messages to the console.
     if DEBUG or force_console:
         log_type = adsk.core.LogTypes.ConsoleLogType
-        app.log(message, level, log_type)
+        app.log(message, level, log_type)  # type: ignore
 
 
 def handle_error(name: str, show_message_box: bool = False):

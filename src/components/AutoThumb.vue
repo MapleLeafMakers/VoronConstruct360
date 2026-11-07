@@ -240,15 +240,17 @@ const getModels = (tree: RepoNode[]) => {
   for (let node of tree) {
     if (node.type === 'tree' && node.children && node.children.length > 0) {
       nodes.push(...getModels(node.children));
-    } else {
+    } else if (node.type === 'blob') {
       nodes.push(node);
     }
   }
 
   return nodes.filter((n: RepoNode) => {
     let node = n as BlobRepoNode;
-    !node?.content_types?.thumb &&
-      (node?.content_types?.step || node?.content_types?.f3d);
+    return (
+      !node?.content_types?.thumb &&
+      (node?.content_types?.step || node?.content_types?.f3d)
+    );
   });
 };
 
@@ -346,6 +348,17 @@ function onOKClick() {
     processThumbs()
       .then(() => {
         totalModelsToProcess.value = 0;
+        if (!processedThumbs.value.length) {
+          showAlert({
+            message:
+              'No thumbnails were generated. Check the Fusion 360 Text Commands window for errors.',
+          });
+          return;
+        }
+        // Default the upload target so the OK button isn't stuck disabled.
+        if (!selectedRepo.value) {
+          selectedRepo.value = collection.value?.repositories?.[0]?.repr ?? null;
+        }
       })
       .catch((err) => {
         console.error('Processing Error', err);

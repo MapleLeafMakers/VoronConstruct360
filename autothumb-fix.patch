@@ -1,0 +1,84 @@
+diff -ru /tmp/orig_copy/plugin/rpc.py ./plugin/rpc.py
+--- /tmp/orig_copy/plugin/rpc.py	2026-11-06 22:35:56.823665952 +0000
++++ ./plugin/rpc.py	2026-11-06 22:35:56.869622600 +0000
+@@ -1,5 +1,6 @@
+ import tempfile
+ import os
++import traceback
+ import adsk.core, adsk.fusion
+ import base64
+ from . import importing
+@@ -37,21 +38,28 @@
+ 
+ @rpc.method
+ def autothumb(url, content_type, token, width=256, height=256, transparent=False, antialias=True):
+-    screenshot = None
+     importManager = futil.app.importManager
+-    with download(url, token, extension=content_type) as file_path:
+-        options = create_import_options(file_path, content_type)
+-        doc = None
+-        try:
++    doc = None
++    try:
++        with download(url, token, extension=content_type) as file_path:
++            options = create_import_options(file_path, content_type)
+             doc = importManager.importToNewDocument(options)
+-            screenshot = get_screenshot(256, 256, transparent=transparent, antialias=antialias)
+-        except:
+-            pass
+-        finally:
+-            if doc:
+-                doc.close(False)
+-
+-        return screenshot
++            # Let Fusion finish loading/rendering the new document, and frame the
++            # model, otherwise the screenshot can be blank or of the wrong view.
++            adsk.doEvents()
++            futil.app.activeViewport.fit()
++            adsk.doEvents()
++            return get_screenshot(width, height, transparent=transparent, antialias=antialias)
++    except Exception:
++        futil.log(
++            'autothumb failed for {}:\n{}'.format(url, traceback.format_exc()),
++            adsk.core.LogLevels.ErrorLogLevel,
++            force_console=True,
++        )
++        return None
++    finally:
++        if doc:
++            doc.close(False)
+ 
+ 
+ @rpc.method
+diff -ru /tmp/orig_copy/plugin/util.py ./plugin/util.py
+--- /tmp/orig_copy/plugin/util.py	2026-11-06 22:35:56.823671709 +0000
++++ ./plugin/util.py	2026-11-06 22:35:56.869794501 +0000
+@@ -14,6 +14,7 @@
+ 
+     filename = '{}.{}'.format(filename, extension)
+     response = requests.get(url, headers={'Accept': 'application/vnd.github.raw', 'Authorization': 'Bearer {}'.format(token)})
++    response.raise_for_status()
+ 
+     with tempfile.TemporaryDirectory() as temp_dir:
+         full_path = os.path.join(temp_dir, filename)
+diff -ru /tmp/orig_copy/src/components/AutoThumb.vue ./src/components/AutoThumb.vue
+--- /tmp/orig_copy/src/components/AutoThumb.vue	2026-11-06 22:35:56.824217483 +0000
++++ ./src/components/AutoThumb.vue	2026-11-06 22:35:56.869995679 +0000
+@@ -348,6 +348,17 @@
+     processThumbs()
+       .then(() => {
+         totalModelsToProcess.value = 0;
++        if (!processedThumbs.value.length) {
++          showAlert({
++            message:
++              'No thumbnails were generated. Check the Fusion 360 Text Commands window for errors.',
++          });
++          return;
++        }
++        // Default the upload target so the OK button isn't stuck disabled.
++        if (!selectedRepo.value) {
++          selectedRepo.value = collection.value?.repositories?.[0]?.repr ?? null;
++        }
+       })
+       .catch((err) => {
+         console.error('Processing Error', err);
